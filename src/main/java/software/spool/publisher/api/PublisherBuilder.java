@@ -1,8 +1,6 @@
 package software.spool.publisher.api;
 
 import software.spool.model.RawDataWrittenToInbox;
-import software.spool.publisher.internal.util.ChannelRouter;
-import software.spool.publisher.internal.util.ErrorRouter;
 import software.spool.publisher.internal.control.RawDataWrittenToInboxHandler;
 import software.spool.publisher.internal.port.EventBus;
 import software.spool.publisher.internal.port.InboxUpdater;

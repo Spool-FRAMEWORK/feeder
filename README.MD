@@ -119,28 +119,44 @@ That's it. After calling `.build()`, the Publisher automatically subscribes to t
 The simplest case: a publisher using the in-memory bus, a default channel, and an updater that just prints to the console.
 
 ```java
-import software.spool.publisher.api.Publisher;
-import software.spool.publisher.internal.util.ChannelRouter;
-import software.spool.publisher.internal.util.ErrorRouter;
+
+import software.spool.publisher.api.ChannelRouter;
+import software.spool.publisher.api.ErrorRouter;
 import software.spool.publisher.internal.util.InMemoryEventBus;
 import software.spool.model.RawDataWrittenToInbox;
 
 var bus = new InMemoryEventBus();
 
-Publisher.sender("minimal-service")
-    .updater((id, status) -> System.out.println(id + " → " + status))
-    .on(bus)
-    .with(new ChannelRouter())
-    .with(new ErrorRouter())
-    .build();
+Publisher.
+
+sender("minimal-service")
+    .
+
+updater((id, status) ->System.out.
+
+println(id +" → "+status))
+        .
+
+on(bus)
+    .
+
+with(new ChannelRouter())
+        .
+
+with(new ErrorRouter())
+        .
+
+build();
 
 // Simulate data arriving in the inbox
 var event = RawDataWrittenToInbox.from("source-a")
-    .withPayload("{\"temp\": 22.5}")
-    .withIdempotencyKey("key-001")
-    .create();
+        .withPayload("{\"temp\": 22.5}")
+        .withIdempotencyKey("key-001")
+        .create();
 
-bus.emit(event, "spool");
+bus.
+
+emit(event, "spool");
 // Output: InboxEntryId[id=key-001] → PUBLISHED
 ```
 

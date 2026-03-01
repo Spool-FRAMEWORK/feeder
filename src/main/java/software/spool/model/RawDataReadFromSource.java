@@ -31,11 +31,11 @@ public record RawDataReadFromSource(
     }
 
     public static class Builder {
-        private String sourceId;
+        private String sender;
         private String payload;
 
-        public Builder sourceId(String sourceId) {
-            this.sourceId = sourceId;
+        public Builder sender(String sender) {
+            this.sender = sender;
             return this;
         }
 
@@ -45,19 +45,15 @@ public record RawDataReadFromSource(
         }
 
         public RawDataReadFromSource build() {
-            if (sourceId == null || sourceId.isBlank()) {
+            if (sender == null || sender.isBlank()) {
                 throw new IllegalArgumentException("sender is required");
             }
 
-            String eventId = UUID.randomUUID().toString();
-            String eventType = "RAW_DATA_READ_FROM_SOURCE";
-            Instant timestamp = Instant.now();
-
             return new RawDataReadFromSource(
-                    eventId,
-                    eventType,
-                    timestamp,
-                    sourceId,
+                    UUID.randomUUID().toString(),
+                    "RAW_DATA_READ_FROM_SOURCE",
+                    Instant.now(),
+                    sender,
                     payload
             );
         }

@@ -12,25 +12,25 @@ public record RawDataWrittenToInbox(
         String payload
 ) implements SpoolEvent {
 
-    public static DataWrittenToInboxBuilder from(String source) {
-        return new DataWrittenToInboxBuilder(source);
+    public static Builder from(String source) {
+        return new Builder(source);
     }
 
-    public static class DataWrittenToInboxBuilder {
+    public static class Builder {
         private final String source;
         private String payload;
         private String idempotencyKey;
 
-        public DataWrittenToInboxBuilder(String source) {
+        public Builder(String source) {
             this.source = source;
         }
 
-        public DataWrittenToInboxBuilder withPayload(String payload) {
+        public Builder withPayload(String payload) {
             this.payload = payload;
             return this;
         }
 
-        public DataWrittenToInboxBuilder withIdempotencyKey(String idempotencyKey) {
+        public Builder withIdempotencyKey(String idempotencyKey) {
             this.idempotencyKey = idempotencyKey;
             return this;
         }

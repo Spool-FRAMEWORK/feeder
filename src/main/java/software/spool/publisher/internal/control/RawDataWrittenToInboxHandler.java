@@ -4,8 +4,8 @@ import software.spool.model.*;
 import software.spool.model.InboxEventStatus;
 import software.spool.publisher.internal.port.EventBus;
 import software.spool.publisher.internal.port.InboxUpdater;
-import software.spool.publisher.internal.util.ChannelRouter;
-import software.spool.publisher.internal.util.ErrorRouter;
+import software.spool.publisher.api.ChannelRouter;
+import software.spool.publisher.api.ErrorRouter;
 
 public class RawDataWrittenToInboxHandler implements Handler<RawDataWrittenToInbox> {
     private final InboxUpdater updater;

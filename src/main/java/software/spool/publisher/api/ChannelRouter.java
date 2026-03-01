@@ -1,4 +1,4 @@
-package software.spool.publisher.internal.util;
+package software.spool.publisher.api;
 
 import software.spool.model.SpoolEvent;
 
