@@ -17,17 +17,18 @@ public class Publisher {
     }
 
     public void startPublishing() {
-        execute(strategy::start);
+        if (subscription.isActive()) return;
+        try {
+            subscription = strategy.start();
+        } catch (Exception e) {
+            errorRouter.dispatch(e);
+        }
     }
 
     public void stopPublishing() {
-        execute(strategy::stop);
-    }
-
-    private void execute(Supplier<Subscription> action) {
         if (!subscription.isActive()) return;
         try {
-            subscription = action.get();
+            subscription = strategy.stop();
         } catch (Exception e) {
             errorRouter.dispatch(e);
         }
