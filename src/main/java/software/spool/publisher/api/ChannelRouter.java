@@ -1,23 +1,23 @@
 package software.spool.publisher.api;
 
-import software.spool.model.SpoolEvent;
+import software.spool.core.model.Event;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class ChannelRouter {
-    private final Map<Class<? extends SpoolEvent>, String> routes;
+    private final Map<Class<? extends Event>, String> routes;
 
     public ChannelRouter() {
         routes = new HashMap<>();
     }
 
-    public <T extends SpoolEvent> ChannelRouter route(Class<T> eventType, String channel) {
+    public <T extends Event> ChannelRouter route(Class<T> eventType, String channel) {
         routes.put(eventType, channel);
         return this;
     }
 
-    public String resolve(SpoolEvent event) {
+    public String resolve(Event event) {
         return routes.getOrDefault(event.getClass(), "spool");
     }
 }

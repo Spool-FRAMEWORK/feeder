@@ -122,10 +122,8 @@ The simplest case: a publisher using the in-memory bus, a default channel, and a
 
 import software.spool.publisher.api.ChannelRouter;
 import software.spool.publisher.api.ErrorRouter;
-import software.spool.publisher.internal.util.InMemoryEventBus;
-import software.spool.model.RawDataWrittenToInbox;
 
-var bus = new InMemoryEventBus();
+var bus = new InMemoryEventBusEmitter();
 
 Publisher.
 
@@ -259,95 +257,92 @@ The `ErrorRouter` tries each registered handler in order. If none match the exce
 In a production environment, you would implement `EventBus` and `InboxUpdater` with real infrastructure.
 
 ```java
-import software.spool.publisher.internal.port.EventBus;
-import software.spool.publisher.internal.port.InboxUpdater;
-import software.spool.model.SpoolEvent;
-import software.spool.model.InboxEntryId;
-import software.spool.model.InboxEventStatus;
+import software.spool.publisher.api.port.EventBusEmitter;
+import software.spool.publisher.api.port.InboxUpdater;
 
 // --- EventBus implementation with Kafka ---
-public class KafkaEventBus implements EventBus {
+public class KafkaEventBus implements EventBusEmitter {
 
-    private final KafkaTemplate<String, String> kafka;
-    private final ObjectMapper mapper;
-    private final Map<Class<? extends SpoolEvent>, List<Consumer<SpoolEvent>>> locals = new HashMap<>();
+  private final KafkaTemplate<String, String> kafka;
+  private final ObjectMapper mapper;
+  private final Map<Class<? extends SpoolEvent>, List<Consumer<SpoolEvent>>> locals = new HashMap<>();
 
-    public KafkaEventBus(KafkaTemplate<String, String> kafka, ObjectMapper mapper) {
-        this.kafka = kafka;
-        this.mapper = mapper;
+  public KafkaEventBus(KafkaTemplate<String, String> kafka, ObjectMapper mapper) {
+    this.kafka = kafka;
+    this.mapper = mapper;
+  }
+
+  @Override
+  public void emit(SpoolEvent event, String channel) {
+    try {
+      String json = mapper.writeValueAsString(event);
+      kafka.send(channel, event.eventId(), json);
+    } catch (JsonProcessingException e) {
+      throw new SerializationException("Failed to serialize event", e);
     }
 
-    @Override
-    public void emit(SpoolEvent event, String channel) {
-        try {
-            String json = mapper.writeValueAsString(event);
-            kafka.send(channel, event.eventId(), json);
-        } catch (JsonProcessingException e) {
-            throw new SerializationException("Failed to serialize event", e);
-        }
+    // Notify local subscribers
+    locals.getOrDefault(event.getClass(), List.of())
+            .forEach(c -> c.accept(event));
+  }
 
-        // Notify local subscribers
-        locals.getOrDefault(event.getClass(), List.of())
-              .forEach(c -> c.accept(event));
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public <T extends SpoolEvent> void subscribe(Class<T> eventClass, Consumer<T> handler) {
-        locals.computeIfAbsent(eventClass, k -> new ArrayList<>())
-              .add(e -> handler.accept((T) e));
-    }
+  @Override
+  @SuppressWarnings("unchecked")
+  public <T extends SpoolEvent> void subscribe(Class<T> eventClass, Consumer<T> handler) {
+    locals.computeIfAbsent(eventClass, k -> new ArrayList<>())
+            .add(e -> handler.accept((T) e));
+  }
 }
 
 // --- InboxUpdater implementation with JPA ---
 public class JpaInboxUpdater implements InboxUpdater {
 
-    private final InboxEntryRepository repository;
+  private final InboxEntryRepository repository;
 
-    public JpaInboxUpdater(InboxEntryRepository repository) {
-        this.repository = repository;
-    }
+  public JpaInboxUpdater(InboxEntryRepository repository) {
+    this.repository = repository;
+  }
 
-    @Override
-    public void update(InboxEntryId id, InboxEventStatus status) {
-        repository.findById(id.id()).ifPresent(entry -> {
-            entry.setStatus(status.name());
-            entry.setUpdatedAt(Instant.now());
-            repository.save(entry);
-        });
-    }
+  @Override
+  public void update(InboxEntryId id, InboxEventStatus status) {
+    repository.findById(id.id()).ifPresent(entry -> {
+      entry.setStatus(status.name());
+      entry.setUpdatedAt(Instant.now());
+      repository.save(entry);
+    });
+  }
 }
 
 // --- Publisher configuration ---
 @Configuration
 public class PublisherConfig {
 
-    @Bean
-    public void configurePublisher(KafkaTemplate<String, String> kafka,
-                                   ObjectMapper mapper,
-                                   InboxEntryRepository repository) {
+  @Bean
+  public void configurePublisher(KafkaTemplate<String, String> kafka,
+                                 ObjectMapper mapper,
+                                 InboxEntryRepository repository) {
 
-        var bus = new KafkaEventBus(kafka, mapper);
-        var updater = new JpaInboxUpdater(repository);
+    var bus = new KafkaEventBus(kafka, mapper);
+    var updater = new JpaInboxUpdater(repository);
 
-        var channels = new ChannelRouter()
+    var channels = new ChannelRouter()
             .route(RawDataWrittenToInbox.class, "raw-inbox")
             .route(RawDataPublished.class, "raw-published");
 
-        var errors = new ErrorRouter()
+    var errors = new ErrorRouter()
             .on(DuplicateEventException.class, e ->
-                log.warn("Skipping duplicate: {}", e.idempotencyKey()))
+                    log.warn("Skipping duplicate: {}", e.idempotencyKey()))
             .on(SerializationException.class, e ->
-                log.error("Serialization failed", e))
+                    log.error("Serialization failed", e))
             .orElse(e -> log.error("Unhandled publisher error", e));
 
-        Publisher.sender("order-service")
+    Publisher.sender("order-service")
             .updater(updater)
             .on(bus)
             .with(channels)
             .with(errors)
             .build();
-    }
+  }
 }
 ```
 
