@@ -52,7 +52,7 @@
         <snapshotRepository>
             <id>github</id>
             <name>Spool-FRAMEWORK GitHub Packages</name>
-            <url>https://maven.pkg.github.com/Spool-FRAMEWORK/packages</url>
+            <url>https://maven.pkg.github.com/Spool-FRAMEWORK/feeder</url>
         </snapshotRepository>
     </distributionManagement>
 
