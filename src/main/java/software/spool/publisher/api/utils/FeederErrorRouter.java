@@ -5,14 +5,35 @@ import software.spool.core.model.*;
 import software.spool.core.port.EventBusEmitter;
 import software.spool.core.utils.ErrorRouter;
 
+/**
+ * Provides the default {@link ErrorRouter} configuration for the publisher.
+ *
+ * <p>
+ * The routing table maps each typed exception to an appropriate failure event
+ * emitted on the {@link EventBusEmitter}:
+ * </p>
+ * <ul>
+ * <li>{@link InboxReadException} → {@link InboxItemConsumptionFailed}</li>
+ * <li>{@link InboxUpdateException} → {@link InboxItemStoreFailed}</li>
+ * </ul>
+ *
+ * @see ErrorRouter
+ */
 public class FeederErrorRouter {
-    public static ErrorRouter defaults(EventBusEmitter bus) {
-        return new ErrorRouter()
-                .on(InboxReadException.class,
-                        (e, cause) -> bus.emit(InboxItemConsumptionFailed.builder()
-                                .errorMessage(e.getMessage()).build()))
-                .on(InboxUpdateException.class,
-                        (e, cause) -> bus.emit(InboxItemStoreFailed.builder()
-                                .from(cause).errorMessage(e.getMessage()).build()));
-    }
+        /**
+         * Creates the default error router for publisher operations.
+         *
+         * @param bus the event bus emitter used to publish failure events;
+         *            must not be {@code null}
+         * @return a pre-configured {@link ErrorRouter}
+         */
+        public static ErrorRouter defaults(EventBusEmitter bus) {
+                return new ErrorRouter()
+                                .on(InboxReadException.class,
+                                                (e, cause) -> bus.emit(InboxItemConsumptionFailed.builder()
+                                                                .errorMessage(e.getMessage()).build()))
+                                .on(InboxUpdateException.class,
+                                                (e, cause) -> bus.emit(InboxItemStoreFailed.builder()
+                                                                .from(cause).errorMessage(e.getMessage()).build()));
+        }
 }

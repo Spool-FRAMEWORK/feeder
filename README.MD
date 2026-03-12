@@ -15,12 +15,12 @@
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Examples](#examples)
-  - [Minimal Example](#minimal-example)
-  - [Publishing with InMemoryEventBus](#publishing-with-inmemoryeventbus)
+  - [Reactive Publishing](#reactive-publishing)
+  - [Polling-based Publishing](#polling-based-publishing)
+  - [Custom Polling Interval](#custom-polling-interval)
   - [Channel Routing by Event Type](#channel-routing-by-event-type)
-  - [Granular Error Handling](#granular-error-handling)
-  - [Real-World: Kafka + JPA Integration](#real-world-kafka--jpa-integration)
-  - [Real-World: Multi-Source Pipeline with Dead Letter Queue](#real-world-multi-source-pipeline-with-dead-letter-queue)
+  - [Custom Error Routing](#custom-error-routing)
+  - [Full Pipeline (Crawler → Publisher → Ingester)](#full-pipeline-crawler--publisher--ingester)
 - [API Reference](#api-reference)
 - [Event Model](#event-model)
 - [License](#license)
@@ -30,30 +30,31 @@
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                        Publisher                         │
-│                                                          │
-│  RawDataWrittenToInbox ──► RawDataWrittenToInboxHandler   │
-│                              │                           │
-│                    ┌─────────┼──────────┐                │
-│                    ▼         ▼          ▼                │
-│             ChannelRouter  EventBus  InboxUpdater         │
-│             (resolves      (emits    (marks entry         │
-│              channel)       event)    as PUBLISHED)       │
-│                    │                                     │
-│                    ▼                                     │
-│              ErrorRouter                                 │
-│          (dispatches errors)                             │
-└──────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                          Publisher                            │
+│                                                              │
+│  InboxItemStored ──► InboxItemStoredHandler                   │
+│                          │                                   │
+│                ┌─────────┼──────────┐                        │
+│                ▼         ▼          ▼                        │
+│         InboxUpdater  EventBus   InboxUpdater                │
+│         (→PUBLISHING)  (emits    (→PUBLISHED)                │
+│                       ItemPublished)                         │
+│                                                              │
+│  Strategy: ReactiveFeeder  OR  PollingFeeder                 │
+│            (event-driven)      (scheduled poll)              │
+│                                                              │
+│  Errors ──► ErrorRouter ──► EventBus.emit(FailureEvent)      │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-The flow is straightforward:
+The publishing flow:
 
-1. A `RawDataWrittenToInbox` event is received through the `EventBus`.
-2. The `ChannelRouter` resolves which channel the data should be published to.
-3. A `RawDataPublished` event is emitted with the payload to the resolved channel.
-4. The `InboxUpdater` marks the inbox entry as `PUBLISHED`.
-5. If anything fails, the `ErrorRouter` dispatches the exception to the appropriate handler.
+1. An **`InboxItemStored`** event is received (reactive) or discovered by polling the inbox.
+2. The **`InboxUpdater`** marks the item as `PUBLISHING`.
+3. An **`ItemPublished`** event is emitted on the event bus with the payload.
+4. The **`InboxUpdater`** marks the item as `PUBLISHED`.
+5. If anything fails, the **`ErrorRouter`** dispatches the exception to the appropriate handler.
 
 ---
 
@@ -61,12 +62,14 @@ The flow is straightforward:
 
 | Concept | Description |
 |---|---|
-| **`Publisher`** | API entry point. Starts the fluent configuration via `Publisher.sender(name)`. |
-| **`EventBus`** | Port (interface) to emit and subscribe to `SpoolEvent` instances. |
-| **`InboxUpdater`** | Port (interface) to update the status of inbox entries. |
-| **`ChannelRouter`** | Resolves the target channel based on event type. Default channel: `"spool"`. |
-| **`ErrorRouter`** | Dispatches exceptions to typed handlers. Supports a generic fallback. |
-| **`InMemoryEventBus`** | In-memory `EventBus` implementation, useful for testing and prototyping. |
+| **`Feeder`** | API entry point. Manages the publishing lifecycle (`startPublishing` / `stopPublishing`). |
+| **`FeederStrategy`** | Strategy interface with two implementations: `ReactiveFeeder` and `PollingFeeder`. |
+| **`ReactiveFeeder`** | Event-driven strategy — subscribes to `InboxItemStored` events on the bus. |
+| **`PollingFeeder`** | Schedule-driven strategy — polls the inbox at a configurable interval (default: 30s). |
+| **`InboxReader`** | Interface you implement to query inbox items by status (used by `PollingFeeder`). |
+| **`ChannelRouter`** | Routes events to named channels based on event type. Default channel: `"spool"`. |
+| **`FeederBuilderFactory`** | DSL entry point with `reactive()` and `polling()` presets. |
+| **`ErrorRouter`** | Maps exception types to handlers. Default mapping provided by `FeederErrorRouter`. |
 
 ---
 
@@ -78,7 +81,7 @@ The flow is straightforward:
 <dependency>
     <groupId>software.spool</groupId>
     <artifactId>feeder</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.2-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -100,411 +103,223 @@ Configure the GitHub Packages repository in your `pom.xml` or `settings.xml`:
 ## Quick Start
 
 ```java
-Publisher.sender("my-service")
-    .updater(myInboxUpdater)
-    .on(myEventBus)
-    .with(myChannelRouter)
-    .with(myErrorRouter)
-    .build();
-```
+// 1. Create your infrastructure
+InMemoryEventBus bus = new InMemoryEventBus();
+InMemoryInbox inbox = new InMemoryInbox();
 
-That's it. After calling `.build()`, the Publisher automatically subscribes to the `EventBus` and begins processing `RawDataWrittenToInbox` events.
+// 2. Create a reactive feeder
+Feeder feeder = FeederBuilderFactory.reactive()
+        .from(bus)                                         // listen for InboxItemStored events
+        .with(inbox)                                       // update inbox statuses
+        .on(bus)                                           // emit ItemPublished events
+        .withErrorRouter(FeederErrorRouter.defaults(bus))  // default error handling
+        .create();
+
+// 3. Start and stop
+feeder.startPublishing();
+// ... items flow from inbox to event channels ...
+feeder.stopPublishing();
+```
 
 ---
 
 ## Examples
 
-### Minimal Example
+### Reactive Publishing
 
-The simplest case: a feeder using the in-memory bus, a default channel, and an updater that just prints to the console.
+The feeder subscribes to `InboxItemStored` events on the event bus and processes each one immediately. Best for low-latency, event-driven architectures.
 
 ```java
-
-import software.spool.feeder.api.ChannelRouter;
-import software.spool.feeder.api.ErrorRouter;
-
-var bus = new InMemoryEventBusEmitter();
-
-Publisher.
-
-sender("minimal-service")
-    .
-
-updater((id, status) ->System.out.
-
-println(id +" → "+status))
-        .
-
-on(bus)
-    .
-
-with(new ChannelRouter())
-        .
-
-with(new ErrorRouter())
-        .
-
-build();
-
-// Simulate data arriving in the inbox
-var event = RawDataWrittenToInbox.from("source-a")
-        .withPayload("{\"temp\": 22.5}")
-        .withIdempotencyKey("key-001")
+Feeder feeder = FeederBuilderFactory.reactive()
+        .from(eventBusListener)
+        .with(inboxUpdater)
+        .on(eventBusEmitter)
+        .withErrorRouter(FeederErrorRouter.defaults(eventBusEmitter))
         .create();
 
-bus.
-
-emit(event, "spool");
-// Output: InboxEntryId[id=key-001] → PUBLISHED
+feeder.startPublishing();
 ```
 
 ---
 
-### Publishing with InMemoryEventBus
+### Polling-based Publishing
 
-Register an additional subscriber to observe published events.
+The feeder periodically queries the inbox for items with `PUBLISHING` status. Best for batch-oriented or high-throughput scenarios.
 
 ```java
-var bus = new InMemoryEventBus();
+Feeder feeder = FeederBuilderFactory.polling()
+        .from(inboxReader)
+        .with(inboxUpdater)
+        .on(eventBusEmitter)
+        .withErrorRouter(FeederErrorRouter.defaults(eventBusEmitter))
+        .create();
 
-// Subscribe to already-published events
-bus.subscribe(RawDataPublished.class, published ->
-    System.out.println("Published: " + published.payload())
-);
+feeder.startPublishing();
+```
 
-Publisher.sender("sensor-gateway")
-    .updater((id, status) -> System.out.println("Inbox " + id.id() + " = " + status))
-    .on(bus)
-    .with(new ChannelRouter())
-    .with(new ErrorRouter().orElse(e -> e.printStackTrace()))
-    .build();
+---
 
-var event = RawDataWrittenToInbox.from("sensor-gateway")
-    .withPayload("{\"humidity\": 65, \"unit\": \"%\"}")
-    .withIdempotencyKey("sensor-001-1709136000")
-    .create();
+### Custom Polling Interval
 
-bus.emit(event, "spool");
-// Output:
-//   Published: {"humidity": 65, "unit": "%"}
-//   Inbox sensor-001-1709136000 = PUBLISHED
+Override the default 30-second polling interval.
+
+```java
+Feeder feeder = FeederBuilderFactory.polling()
+        .from(inboxReader)
+        .with(inboxUpdater)
+        .on(eventBusEmitter)
+        .each(Duration.ofSeconds(5))    // poll every 5 seconds
+        .withErrorRouter(FeederErrorRouter.defaults(eventBusEmitter))
+        .create();
+
+feeder.startPublishing();
 ```
 
 ---
 
 ### Channel Routing by Event Type
 
-Route different event types to different channels (topics, queues, etc.).
+Use `ChannelRouter` to send events to different channels based on their type.
 
 ```java
-var channelRouter = new ChannelRouter()
-    .route(RawDataWrittenToInbox.class, "inbox-events")
-    .route(RawDataPublished.class, "published-events");
+ChannelRouter router = new ChannelRouter()
+        .route(OrderReceived.class, "orders")
+        .route(PaymentProcessed.class, "payments")
+        .route(UserRegistered.class, "users");
 
-var bus = new InMemoryEventBus();
-
-Publisher.sender("order-service")
-    .updater((id, status) -> { /* update database */ })
-    .on(bus)
-    .with(channelRouter)
-    .with(new ErrorRouter())
-    .build();
-
-// The RawDataWrittenToInbox event will resolve to channel "inbox-events"
-// The resulting RawDataPublished will be emitted on the bus internally
-var event = RawDataWrittenToInbox.from("order-service")
-    .withPayload("{\"orderId\": \"ORD-9921\", \"total\": 149.99}")
-    .withIdempotencyKey("ORD-9921")
-    .create();
-
-bus.emit(event, "inbox-events");
+// Resolve the channel for any event
+String channel = router.resolve(myEvent);  // "orders", "payments", "users", or default "spool"
 ```
 
 ---
 
-### Granular Error Handling
+### Custom Error Routing
 
-Configure specific handlers per exception type and a generic fallback.
-
-```java
-import software.spool.model.exception.DuplicateEventException;
-import software.spool.model.exception.SerializationException;
-
-var errorRouter = new ErrorRouter()
-    .on(DuplicateEventException.class, e ->
-        System.err.println("Duplicate event ignored: " + e.idempotencyKey()))
-    .on(SerializationException.class, e ->
-        System.err.println("Serialization error: " + e.getMessage()))
-    .orElse(e ->
-        System.err.println("Unexpected error: " + e.getMessage()));
-
-var bus = new InMemoryEventBus();
-
-Publisher.sender("payment-processor")
-    .updater((id, status) -> { /* ... */ })
-    .on(bus)
-    .with(new ChannelRouter())
-    .with(errorRouter)
-    .build();
-```
-
-The `ErrorRouter` tries each registered handler in order. If none match the exception type, the fallback defined with `.orElse(...)` is executed.
-
----
-
-### Real-World: Kafka + JPA Integration
-
-In a production environment, you would implement `EventBus` and `InboxUpdater` with real infrastructure.
+Override the default error routing to add logging, metrics, or recovery logic.
 
 ```java
-import software.spool.feeder.api.port.EventBusEmitter;
-import software.spool.feeder.api.port.InboxUpdater;
+ErrorRouter customRouter = new ErrorRouter()
+        .on(InboxReadException.class, (e, cause) -> {
+            logger.error("Failed to read inbox: {}", e.getMessage());
+            eventBusEmitter.emit(InboxItemConsumptionFailed.builder()
+                    .errorMessage(e.getMessage()).build());
+        })
+        .on(InboxUpdateException.class, (e, cause) -> {
+            logger.error("Failed to update inbox: {}", e.getMessage());
+            metrics.increment("inbox.update.failures");
+        });
 
-// --- EventBus implementation with Kafka ---
-public class KafkaEventBus implements EventBusEmitter {
+Feeder feeder = FeederBuilderFactory.reactive()
+        .from(eventBusListener)
+        .with(inboxUpdater)
+        .on(eventBusEmitter)
+        .withErrorRouter(customRouter)
+        .create();
 
-  private final KafkaTemplate<String, String> kafka;
-  private final ObjectMapper mapper;
-  private final Map<Class<? extends SpoolEvent>, List<Consumer<SpoolEvent>>> locals = new HashMap<>();
-
-  public KafkaEventBus(KafkaTemplate<String, String> kafka, ObjectMapper mapper) {
-    this.kafka = kafka;
-    this.mapper = mapper;
-  }
-
-  @Override
-  public void emit(SpoolEvent event, String channel) {
-    try {
-      String json = mapper.writeValueAsString(event);
-      kafka.send(channel, event.eventId(), json);
-    } catch (JsonProcessingException e) {
-      throw new SerializationException("Failed to serialize event", e);
-    }
-
-    // Notify local subscribers
-    locals.getOrDefault(event.getClass(), List.of())
-            .forEach(c -> c.accept(event));
-  }
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public <T extends SpoolEvent> void subscribe(Class<T> eventClass, Consumer<T> handler) {
-    locals.computeIfAbsent(eventClass, k -> new ArrayList<>())
-            .add(e -> handler.accept((T) e));
-  }
-}
-
-// --- InboxUpdater implementation with JPA ---
-public class JpaInboxUpdater implements InboxUpdater {
-
-  private final InboxEntryRepository repository;
-
-  public JpaInboxUpdater(InboxEntryRepository repository) {
-    this.repository = repository;
-  }
-
-  @Override
-  public void update(InboxEntryId id, InboxEventStatus status) {
-    repository.findById(id.id()).ifPresent(entry -> {
-      entry.setStatus(status.name());
-      entry.setUpdatedAt(Instant.now());
-      repository.save(entry);
-    });
-  }
-}
-
-// --- Publisher configuration ---
-@Configuration
-public class PublisherConfig {
-
-  @Bean
-  public void configurePublisher(KafkaTemplate<String, String> kafka,
-                                 ObjectMapper mapper,
-                                 InboxEntryRepository repository) {
-
-    var bus = new KafkaEventBus(kafka, mapper);
-    var updater = new JpaInboxUpdater(repository);
-
-    var channels = new ChannelRouter()
-            .route(RawDataWrittenToInbox.class, "raw-inbox")
-            .route(RawDataPublished.class, "raw-published");
-
-    var errors = new ErrorRouter()
-            .on(DuplicateEventException.class, e ->
-                    log.warn("Skipping duplicate: {}", e.idempotencyKey()))
-            .on(SerializationException.class, e ->
-                    log.error("Serialization failed", e))
-            .orElse(e -> log.error("Unhandled feeder error", e));
-
-    Publisher.sender("order-service")
-            .updater(updater)
-            .on(bus)
-            .with(channels)
-            .with(errors)
-            .build();
-  }
-}
+feeder.startPublishing();
 ```
 
 ---
 
-### Real-World: Multi-Source Pipeline with Dead Letter Queue
+### Full Pipeline (Crawler → Publisher → Ingester)
 
-Configure multiple publishers for different data sources, with a shared dead letter queue for unrecoverable errors.
+A complete example showing how all three Spool modules work together.
 
 ```java
-public class PublisherPipeline {
+// Shared infrastructure
+InMemoryEventBus bus = new InMemoryEventBus();
+InMemoryInbox inbox = new InMemoryInbox();
 
-    private final EventBus bus;
-    private final InboxUpdater updater;
-    private final Consumer<Exception> deadLetterSink;
+// 1. Crawler — fetches JSON from an API and stores records in the inbox
+CrawlerStrategy crawler = CrawlerBuilderFactory.poll(new MyApiSource())
+        .withFormat(Formats.JSON_ARRAY)
+        .ports(CrawlerPorts.builder()
+                .inbox(inbox)
+                .bus(bus)
+                .build())
+        .create();
 
-    public PublisherPipeline(EventBus bus, InboxUpdater updater, Consumer<Exception> deadLetterSink) {
-        this.bus = bus;
-        this.updater = updater;
-        this.deadLetterSink = deadLetterSink;
-    }
+// 2. Publisher — reacts to InboxItemStored events and publishes them
+Feeder feeder = FeederBuilderFactory.reactive()
+        .from(bus)
+        .with(inbox)
+        .on(bus)
+        .withErrorRouter(FeederErrorRouter.defaults(bus))
+        .create();
 
-    public void initialize() {
-        // Publisher for IoT sensor data
-        Publisher.sender("iot-sensors")
-            .updater(updater)
-            .on(bus)
-            .with(new ChannelRouter()
-                .route(RawDataWrittenToInbox.class, "iot.raw"))
-            .with(new ErrorRouter()
-                .on(SerializationException.class, e -> {
-                    log.warn("Sensor data malformed, sending to DLQ: {}", e.getMessage());
-                    deadLetterSink.accept(e);
-                })
-                .orElse(deadLetterSink))
-            .build();
+// 3. Ingester — buffers ItemPublished events and writes to data lake
+Ingester ingester = IngesterBuilderFactory.buffered()
+        .from(bus)
+        .storesWith(myDataLakeWriter)
+        .updatedWith(inbox)
+        .on(bus)
+        .flushWith(FlushPolicy.whenReaches(50).orEvery(Duration.ofSeconds(10)))
+        .create();
 
-        // Publisher for external API data
-        Publisher.sender("external-api")
-            .updater(updater)
-            .on(bus)
-            .with(new ChannelRouter()
-                .route(RawDataWrittenToInbox.class, "api.raw"))
-            .with(new ErrorRouter()
-                .on(DuplicateEventException.class, e ->
-                    log.info("API duplicate ignored: {}", e.idempotencyKey()))
-                .orElse(deadLetterSink))
-            .build();
-
-        // Publisher for batch CSV file data
-        Publisher.sender("csv-importer")
-            .updater(updater)
-            .on(bus)
-            .with(new ChannelRouter()
-                .route(RawDataWrittenToInbox.class, "batch.csv.raw"))
-            .with(new ErrorRouter()
-                .on(SplitException.class, e ->
-                    log.error("CSV split failed: {}", e.getMessage()))
-                .orElse(deadLetterSink))
-            .build();
-
-        log.info("Publisher pipeline initialized for 3 sources");
-    }
-}
-
-// --- Usage ---
-var pipeline = new PublisherPipeline(
-    kafkaEventBus,
-    jpaInboxUpdater,
-    e -> kafkaTemplate.send("dead-letter-queue", e.getMessage())
-);
-
-pipeline.initialize();
-
-// Events are emitted to the bus from each source:
-var sensorEvent = RawDataWrittenToInbox.from("iot-sensors")
-    .withPayload("{\"deviceId\": \"DHT-22\", \"temp\": 23.1}")
-    .withIdempotencyKey("DHT-22-1709136000")
-    .create();
-
-bus.emit(sensorEvent, "iot.raw");
+// Start the pipeline (order matters: downstream first)
+ingester.startIngestion();
+feeder.startPublishing();
+crawler.execute();
 ```
 
 ---
 
 ## API Reference
 
-### `Publisher`
+### Builder DSL — Reactive
 
-| Method | Returns | Description |
+| Step | Method | Description |
 |---|---|---|
-| `Publisher.sender(String)` | `PublisherBuilder` | Creates a builder identified by the sender name. |
+| Entry point | `FeederBuilderFactory.reactive()` | Start building a reactive feeder. |
+| Listener | `.from(eventBusListener)` | Set the event bus to subscribe to. |
+| Updater | `.with(inboxUpdater)` | Set the inbox updater. |
+| Emitter | `.on(eventBusEmitter)` | Set the event bus to emit events on. |
+| Errors | `.withErrorRouter(errorRouter)` | Set the error router. |
+| Create | `.create()` | Return the configured `Feeder`. |
 
-### `PublisherBuilder`
+### Builder DSL — Polling
 
-| Method | Returns | Description |
+| Step | Method | Description |
 |---|---|---|
-| `.updater(InboxUpdater)` | `PublisherBuilder` | Sets the inbox update strategy. |
-| `.on(EventBus)` | `PublisherBuilder` | Sets the event bus to use. |
-| `.with(ChannelRouter)` | `PublisherBuilder` | Sets the channel router. |
-| `.with(ErrorRouter)` | `PublisherBuilder` | Sets the error router. |
-| `.build()` | `void` | Builds and registers the feeder on the bus. Throws `NullPointerException` if any component is missing. |
+| Entry point | `FeederBuilderFactory.polling()` | Start building a polling feeder. |
+| Reader | `.from(inboxReader)` | Set the inbox reader for querying items. |
+| Updater | `.with(inboxUpdater)` | Set the inbox updater. |
+| Emitter | `.on(eventBusEmitter)` | Set the event bus to emit events on. |
+| Interval | `.each(Duration.ofSeconds(15))` | Set the polling interval (default: 30s). |
+| Errors | `.withErrorRouter(errorRouter)` | Set the error router. |
+| Create | `.create()` | Return the configured `Feeder`. |
 
-### `ChannelRouter`
+### Feeder Lifecycle
 
-| Method | Returns | Description |
-|---|---|---|
-| `.route(Class<T>, String)` | `ChannelRouter` | Maps an event type to a channel. |
-| `.resolve(SpoolEvent)` | `String` | Resolves the channel for an event. Defaults to `"spool"`. |
-
-### `ErrorRouter`
-
-| Method | Returns | Description |
-|---|---|---|
-| `.on(Class<E>, Consumer<E>)` | `ErrorRouter` | Registers a handler for a specific exception type. |
-| `.orElse(Consumer<Exception>)` | `ErrorRouter` | Sets the fallback handler. |
-| `.dispatch(Exception)` | `void` | Dispatches the exception to the matching handler. |
-
-### Ports (Interfaces)
-
-- **`EventBus`** — `emit(SpoolEvent, String)` / `subscribe(Class<T>, Consumer<T>)`
-- **`InboxUpdater`** — `update(InboxEntryId, InboxEventStatus)`
+| Method | Description |
+|---|---|
+| `startPublishing()` | Start the underlying strategy (subscribe or schedule). |
+| `stopPublishing()` | Stop the strategy and release resources. |
 
 ---
 
 ## Event Model
 
-| Event | Description |
+| Event | When Emitted |
 |---|---|
-| `RawDataWrittenToInbox` | Raw data written to the inbox. Triggers the Publisher. |
-| `RawDataPublished` | Raw data successfully published to a channel. |
-| `RawDataPublishFailed` | Failed to publish raw data. |
-| `RawDataReadFromSource` | Raw data read from an external source. |
-| `RawDataReadFromInbox` | Raw data read from the inbox. |
-| `SourceFailed` | A data source failure. |
+| `InboxItemStored` | _Consumed_ — triggers the publishing process (reactive mode). |
+| `ItemPublished` | After an inbox item is read and its payload is published. |
+| `InboxItemConsumptionFailed` | When `InboxReader.findByStatus()` throws an exception. |
+| `InboxItemStoreFailed` | When `InboxUpdater.update()` throws an exception. |
 
-### Inbox States (`InboxEventStatus`)
+### Inbox Item Status Lifecycle
 
 ```
-UNPUBLISHED → PUBLISHED → VALIDATING → VALIDATED → PERSISTED
+STORED → PUBLISHING → PUBLISHED
 ```
 
-### Exceptions
-
-| Exception | Description |
+| Status | Meaning |
 |---|---|
-| `SpoolException` | Abstract base class for all Spool exceptions. |
-| `DuplicateEventException` | Duplicate event detected by idempotency key. |
-| `SerializationException` | Failed to serialize an event. |
-| `DeserializationException` | Failed to deserialize an event. |
-| `SplitException` | Failed to split input data. |
+| `PUBLISHING` | The item has been picked up and is being published. |
+| `PUBLISHED` | The item has been successfully published to the event bus. |
 
 ---
 
 ## License
 
-```
-Copyright 2024 Javier Castilla
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-```
+Distributed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
