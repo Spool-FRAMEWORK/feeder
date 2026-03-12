@@ -4,9 +4,17 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+    <repositories>
+        <repository>
+            <id>github</id>
+            <name>Spool-FRAMEWORK GitHub Packages</name>
+            <url>https://maven.pkg.github.com/Spool-FRAMEWORK/packages</url>
+        </repository>
+    </repositories>
+
     <groupId>software.spool</groupId>
-    <artifactId>publisher</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <artifactId>feeder</artifactId>
+    <version>1.0.3-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>${project.groupId}:${project.artifactId}</name>
@@ -44,7 +52,7 @@
         <snapshotRepository>
             <id>github</id>
             <name>Spool-FRAMEWORK GitHub Packages</name>
-            <url>https://maven.pkg.github.com/Spool-FRAMEWORK/packages</url>
+            <url>https://maven.pkg.github.com/Spool-FRAMEWORK/feeder</url>
         </snapshotRepository>
     </distributionManagement>
 
@@ -74,4 +82,12 @@
             </plugin>
         </plugins>
     </build>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.spool-framework</groupId>
+            <artifactId>core</artifactId>
+            <version>1.0.15-SNAPSHOT</version>
+        </dependency>
+    </dependencies>
 </project>
