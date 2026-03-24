@@ -9,6 +9,8 @@ import software.spool.feeder.api.port.InboxReader;
 import software.spool.feeder.api.utils.PollingPolicy;
 import software.spool.feeder.internal.scheduler.PollingScheduler;
 
+import java.util.Objects;
+
 /**
  * Polling-based {@link FeederStrategy} that periodically reads inbox items
  * with {@code PUBLISHING} status and processes them.
@@ -38,10 +40,10 @@ public class PollingFeeder implements FeederStrategy {
      * @param handler  the handler that processes each inbox item
      */
     public PollingFeeder(InboxReader reader, Handler<InboxItemStored> handler, PollingScheduler scheduler, PollingPolicy policy) {
-        this.reader = reader;
-        this.handler = handler;
-        this.scheduler = scheduler;
-        this.policy = policy;
+        this.reader = Objects.requireNonNull(reader);
+        this.handler = Objects.requireNonNull(handler);
+        this.scheduler = Objects.requireNonNull(scheduler);
+        this.policy = Objects.requireNonNull(policy);
     }
 
     /**

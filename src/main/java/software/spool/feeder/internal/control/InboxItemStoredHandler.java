@@ -37,9 +37,9 @@ public class InboxItemStoredHandler implements Handler<InboxItemStored> {
      * @param emitter the event bus emitter for publishing events
      */
     public InboxItemStoredHandler(InboxUpdater updater, EventBusEmitter emitter, ErrorRouter errorRouter) {
-        this.updater = updater;
-        this.emitter = emitter;
-        this.errorRouter = errorRouter;
+        this.updater = Objects.requireNonNull(updater);
+        this.emitter = Objects.requireNonNull(emitter);
+        this.errorRouter = Objects.requireNonNull(errorRouter);
     }
 
     @Override

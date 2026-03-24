@@ -1,5 +1,7 @@
 package software.spool.feeder.api.builder;
 
+import software.spool.core.control.Handler;
+import software.spool.core.model.InboxItemStored;
 import software.spool.core.port.EventBusEmitter;
 import software.spool.core.port.EventBusListener;
 import software.spool.core.port.InboxUpdater;
@@ -91,12 +93,8 @@ public class ReactiveFeederBuilder {
      * @throws NullPointerException if any required port has not been set
      */
     public Feeder create() {
-        Objects.requireNonNull(listener, "listener is required");
-        Objects.requireNonNull(updater, "updater is required");
-        Objects.requireNonNull(emitter, "emitter is required");
-        Objects.requireNonNull(errorRouter, "errorRouter is required");
-        return new Feeder(
-                new ReactiveFeeder(listener, new InboxItemStoredHandler(updater, emitter, errorRouter)),
-                errorRouter);
+        Handler<InboxItemStored> handler = new InboxItemStoredHandler(updater, emitter, errorRouter);
+        ReactiveFeeder strategy = new ReactiveFeeder(listener, handler);
+        return new Feeder(strategy, errorRouter);
     }
 }

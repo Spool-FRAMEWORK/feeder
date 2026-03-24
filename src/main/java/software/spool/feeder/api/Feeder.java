@@ -4,6 +4,8 @@ import software.spool.core.utils.CancellationToken;
 import software.spool.core.utils.ErrorRouter;
 import software.spool.feeder.api.strategy.FeederStrategy;
 
+import java.util.Objects;
+
 /**
  * Main API entry point for the publishing lifecycle.
  *
@@ -46,9 +48,9 @@ public class Feeder {
      *                    {@code null}
      */
     public Feeder(FeederStrategy strategy, ErrorRouter errorRouter) {
-        this.strategy = strategy;
+        this.strategy = Objects.requireNonNull(strategy);
         this.token  = CancellationToken.NONE;
-        this.errorRouter = errorRouter;
+        this.errorRouter = Objects.requireNonNull(errorRouter);
     }
 
     /**

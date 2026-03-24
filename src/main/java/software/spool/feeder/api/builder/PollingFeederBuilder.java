@@ -115,10 +115,6 @@ public class PollingFeederBuilder {
      * @throws NullPointerException if any required port has not been set
      */
     public Feeder create() {
-        Objects.requireNonNull(reader, "reader cannot be null");
-        Objects.requireNonNull(emitter, "emitter cannot be null");
-        Objects.requireNonNull(updater, "updater cannot be null");
-        Objects.requireNonNull(errorRouter, "errorRouter cannot be null");
         Handler<InboxItemStored> handler = new InboxItemStoredHandler(updater, emitter, errorRouter);
         PollingFeeder strategy = new PollingFeeder(reader, handler, scheduler, policy);
         return new Feeder(strategy, errorRouter);

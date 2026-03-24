@@ -5,6 +5,8 @@ import software.spool.core.model.InboxItemStored;
 import software.spool.core.port.*;
 import software.spool.core.utils.CancellationToken;
 
+import java.util.Objects;
+
 /**
  * Reactive {@link FeederStrategy} that listens for {@link InboxItemStored}
  * events on the event bus and processes each one immediately.
@@ -32,8 +34,8 @@ public class ReactiveFeeder implements FeederStrategy {
      * @param handler          the handler that processes each inbox item
      */
     public ReactiveFeeder(EventBusListener eventBusListener, Handler<InboxItemStored> handler) {
-        this.eventBusListener = eventBusListener;
-        this.handler = handler;
+        this.eventBusListener = Objects.requireNonNull(eventBusListener);
+        this.handler = Objects.requireNonNull(handler);
     }
 
     /**
