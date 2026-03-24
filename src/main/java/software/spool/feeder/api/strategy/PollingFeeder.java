@@ -1,15 +1,13 @@
-package software.spool.publisher.api.strategy;
+package software.spool.feeder.api.strategy;
 
 import software.spool.core.control.Handler;
 import software.spool.core.model.InboxItem;
 import software.spool.core.model.InboxItemStatus;
 import software.spool.core.model.InboxItemStored;
-import software.spool.core.port.Subscription;
-import software.spool.publisher.api.port.InboxReader;
-
-import java.time.Duration;
-import java.util.Objects;
-import java.util.concurrent.*;
+import software.spool.core.utils.CancellationToken;
+import software.spool.feeder.api.port.InboxReader;
+import software.spool.feeder.api.utils.PollingPolicy;
+import software.spool.feeder.internal.scheduler.PollingScheduler;
 
 /**
  * Polling-based {@link FeederStrategy} that periodically reads inbox items
@@ -30,42 +28,33 @@ import java.util.concurrent.*;
 public class PollingFeeder implements FeederStrategy {
     private final InboxReader reader;
     private final Handler<InboxItemStored> handler;
-    private final Duration interval;
+    private final PollingScheduler scheduler;
+    private final PollingPolicy policy;
 
     /**
      * Creates a new polling feeder.
      *
      * @param reader   the inbox reader for querying items by status
      * @param handler  the handler that processes each inbox item
-     * @param interval the polling interval; defaults to 30 seconds if {@code null}
      */
-    public PollingFeeder(InboxReader reader, Handler<InboxItemStored> handler, Duration interval) {
+    public PollingFeeder(InboxReader reader, Handler<InboxItemStored> handler, PollingScheduler scheduler, PollingPolicy policy) {
         this.reader = reader;
         this.handler = handler;
-        this.interval = Objects.requireNonNullElse(interval, Duration.ofSeconds(30));
+        this.scheduler = scheduler;
+        this.policy = policy;
     }
 
     /**
      * Starts a scheduled executor that polls the inbox at the configured interval.
-     *
-     * @return a {@link Subscription} whose {@code cancel()} shuts down the
      *         scheduler
      */
     @Override
-    public Subscription start() {
-        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-        scheduler.scheduleWithFixedDelay(
+    public void execute(CancellationToken token) {
+        scheduler.schedule(
                 () -> reader.findByStatus(InboxItemStatus.UNPUBLISHED).map(this::toEvent).forEach(handler::handle),
-                0, interval.toMillis(), TimeUnit.MILLISECONDS);
-        return new Subscription() {
-            public void cancel() {
-                scheduler.shutdown();
-            }
-
-            public boolean isActive() {
-                return !scheduler.isShutdown();
-            }
-        };
+                policy,
+                token
+        );
     }
 
     private InboxItemStored toEvent(InboxItem inboxItem) {

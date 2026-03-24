@@ -1,4 +1,4 @@
-package software.spool.publisher.api.builder;
+package software.spool.feeder.api.builder;
 
 import software.spool.core.port.EventBusEmitter;
 import software.spool.core.port.EventBusListener;
@@ -7,9 +7,9 @@ import software.spool.core.port.decorator.SafeEventBusEmitter;
 import software.spool.core.port.decorator.SafeEventBusListener;
 import software.spool.core.port.decorator.SafeInboxUpdater;
 import software.spool.core.utils.ErrorRouter;
-import software.spool.publisher.api.Feeder;
-import software.spool.publisher.api.strategy.ReactiveFeeder;
-import software.spool.publisher.internal.control.InboxItemStoredHandler;
+import software.spool.feeder.api.Feeder;
+import software.spool.feeder.api.strategy.ReactiveFeeder;
+import software.spool.feeder.internal.control.InboxItemStoredHandler;
 
 import java.util.Objects;
 

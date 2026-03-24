@@ -1,8 +1,8 @@
-package software.spool.publisher.api;
+package software.spool.feeder.api;
 
+import software.spool.core.utils.CancellationToken;
 import software.spool.core.utils.ErrorRouter;
-import software.spool.publisher.api.strategy.FeederStrategy;
-import software.spool.core.port.Subscription;
+import software.spool.feeder.api.strategy.FeederStrategy;
 
 /**
  * Main API entry point for the publishing lifecycle.
@@ -15,7 +15,7 @@ import software.spool.core.port.Subscription;
  *
  * <p>
  * Use the fluent builders in
- * {@link software.spool.publisher.api.builder.FeederBuilderFactory}
+ * {@link software.spool.feeder.api.builder.FeederBuilderFactory}
  * to construct instances:
  * </p>
  *
@@ -31,11 +31,11 @@ import software.spool.core.port.Subscription;
  * }</pre>
  *
  * @see FeederStrategy
- * @see software.spool.publisher.api.builder.FeederBuilderFactory
+ * @see software.spool.feeder.api.builder.FeederBuilderFactory
  */
 public class Feeder {
     private final FeederStrategy strategy;
-    private Subscription subscription;
+    private CancellationToken token;
     private final ErrorRouter errorRouter;
 
     /**
@@ -47,7 +47,7 @@ public class Feeder {
      */
     public Feeder(FeederStrategy strategy, ErrorRouter errorRouter) {
         this.strategy = strategy;
-        this.subscription = Subscription.NULL;
+        this.token  = CancellationToken.NONE;
         this.errorRouter = errorRouter;
     }
 
@@ -55,17 +55,17 @@ public class Feeder {
      * Starts the publishing process.
      *
      * <p>
-     * Delegates to the underlying {@link FeederStrategy#start()} and stores
+     *
      * the resulting subscription. Calling this method when publishing is
      * already active has no effect. Any exceptions are routed through the
      * configured {@link ErrorRouter}.
      * </p>
      */
-    public void startPublishing() {
-        if (subscription.isActive())
-            return;
+    public void startFeeding() {
+        if (token.isActive()) return;
+        token = CancellationToken.create();
         try {
-            subscription = strategy.start();
+            strategy.execute(token);
         } catch (Exception e) {
             errorRouter.dispatch(e);
         }
@@ -75,17 +75,17 @@ public class Feeder {
      * Stops the publishing process.
      *
      * <p>
-     * Delegates to the underlying {@link FeederStrategy#stop()} and clears
      * the subscription. Calling this method when publishing is already
      * stopped has no effect. Any exceptions are routed through the
      * configured {@link ErrorRouter}.
      * </p>
      */
-    public void stopPublishing() {
-        if (!subscription.isActive())
+    public void stopFeeding() {
+        if (!token.isActive())
             return;
         try {
-            subscription = strategy.stop();
+            token.cancel();
+            token = CancellationToken.NONE;
         } catch (Exception e) {
             errorRouter.dispatch(e);
         }

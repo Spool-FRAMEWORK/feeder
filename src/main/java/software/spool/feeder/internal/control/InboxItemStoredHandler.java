@@ -1,4 +1,4 @@
-package software.spool.publisher.internal.control;
+package software.spool.feeder.internal.control;
 
 import software.spool.core.control.Handler;
 import software.spool.core.model.*;
@@ -51,6 +51,7 @@ public class InboxItemStoredHandler implements Handler<InboxItemStored> {
                     .from(object)
                     .payload(item.payload())
                     .partitionKeySchema(item.partitionKeySchema())
+                    .addMetadata(item.metadata())
                     .build());
             updater.update(object.idempotencyKey(), InboxItemStatus.PUBLISHED);
         } catch (Exception e) { errorRouter.dispatch(e, object); }

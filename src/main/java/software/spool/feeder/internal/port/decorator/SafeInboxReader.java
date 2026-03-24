@@ -1,10 +1,10 @@
-package software.spool.publisher.internal.port.decorator;
+package software.spool.feeder.internal.port.decorator;
 
 import software.spool.core.exception.InboxReadException;
 import software.spool.core.exception.SpoolException;
 import software.spool.core.model.InboxItem;
 import software.spool.core.model.InboxItemStatus;
-import software.spool.publisher.api.port.InboxReader;
+import software.spool.feeder.api.port.InboxReader;
 
 import java.util.stream.Stream;
 

@@ -1,4 +1,4 @@
-package software.spool.publisher.api.port;
+package software.spool.feeder.api.port;
 
 import software.spool.core.exception.InboxReadException;
 import software.spool.core.model.InboxItem;

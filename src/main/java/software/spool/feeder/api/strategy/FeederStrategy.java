@@ -1,7 +1,8 @@
-package software.spool.publisher.api.strategy;
+package software.spool.feeder.api.strategy;
 
 import software.spool.core.exception.SpoolException;
 import software.spool.core.port.Subscription;
+import software.spool.core.utils.CancellationToken;
 
 /**
  * Strategy interface that defines how the publisher discovers and processes
@@ -23,17 +24,7 @@ public interface FeederStrategy {
     /**
      * Starts the strategy and returns a subscription that can be cancelled.
      *
-     * @return a {@link Subscription} representing the active publishing session
      * @throws SpoolException if the strategy could not be started
      */
-    Subscription start() throws SpoolException;
-
-    /**
-     * Stops the strategy and returns a null subscription.
-     *
-     * @return {@link Subscription#NULL}
-     */
-    default Subscription stop() {
-        return Subscription.NULL;
-    }
+    void execute(CancellationToken token) throws SpoolException;
 }

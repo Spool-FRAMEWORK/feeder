@@ -1,4 +1,4 @@
-package software.spool.publisher.api.utils;
+package software.spool.feeder.api.utils;
 
 import software.spool.core.exception.*;
 import software.spool.core.model.*;

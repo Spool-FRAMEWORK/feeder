@@ -1,8 +1,9 @@
-package software.spool.publisher.api.strategy;
+package software.spool.feeder.api.strategy;
 
 import software.spool.core.control.Handler;
 import software.spool.core.model.InboxItemStored;
 import software.spool.core.port.*;
+import software.spool.core.utils.CancellationToken;
 
 /**
  * Reactive {@link FeederStrategy} that listens for {@link InboxItemStored}
@@ -38,10 +39,12 @@ public class ReactiveFeeder implements FeederStrategy {
     /**
      * Subscribes to {@link InboxItemStored} events on the event bus.
      *
-     * @return a {@link Subscription} that can be cancelled to stop publishing
      */
     @Override
-    public Subscription start() {
-        return eventBusListener.on(InboxItemStored.class, handler);
+    public void execute(CancellationToken token) {
+        eventBusListener.on(InboxItemStored.class, e -> {
+            if (token.isCancelled()) return;
+            handler.handle(e);
+        });
     }
 }

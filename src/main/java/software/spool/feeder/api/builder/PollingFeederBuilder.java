@@ -1,15 +1,19 @@
-package software.spool.publisher.api.builder;
+package software.spool.feeder.api.builder;
 
+import software.spool.core.control.Handler;
+import software.spool.core.model.InboxItemStored;
 import software.spool.core.port.EventBusEmitter;
 import software.spool.core.port.InboxUpdater;
 import software.spool.core.port.decorator.SafeEventBusEmitter;
 import software.spool.core.port.decorator.SafeInboxUpdater;
 import software.spool.core.utils.ErrorRouter;
-import software.spool.publisher.api.Feeder;
-import software.spool.publisher.api.port.InboxReader;
-import software.spool.publisher.api.strategy.PollingFeeder;
-import software.spool.publisher.internal.port.decorator.SafeInboxReader;
-import software.spool.publisher.internal.control.InboxItemStoredHandler;
+import software.spool.feeder.api.Feeder;
+import software.spool.feeder.api.port.InboxReader;
+import software.spool.feeder.api.strategy.PollingFeeder;
+import software.spool.feeder.api.utils.PollingPolicy;
+import software.spool.feeder.internal.port.decorator.SafeInboxReader;
+import software.spool.feeder.internal.control.InboxItemStoredHandler;
+import software.spool.feeder.internal.scheduler.PollingScheduler;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -37,8 +41,9 @@ public class PollingFeederBuilder {
     private InboxReader reader;
     private InboxUpdater updater;
     private EventBusEmitter emitter;
-    private Duration interval;
+    private PollingPolicy policy;
     private ErrorRouter errorRouter;
+    private PollingScheduler scheduler;
 
     PollingFeederBuilder() {
     }
@@ -83,7 +88,7 @@ public class PollingFeederBuilder {
      * @return this builder for chaining
      */
     public PollingFeederBuilder each(Duration interval) {
-        this.interval = interval;
+        this.policy = PollingPolicy.every(interval);
         return this;
     }
 
@@ -98,6 +103,11 @@ public class PollingFeederBuilder {
         return this;
     }
 
+    public PollingFeederBuilder withScheduler(PollingScheduler scheduler) {
+        this.scheduler = scheduler;
+        return this;
+    }
+
     /**
      * Builds and returns the configured polling {@link Feeder}.
      *
@@ -109,8 +119,8 @@ public class PollingFeederBuilder {
         Objects.requireNonNull(emitter, "emitter cannot be null");
         Objects.requireNonNull(updater, "updater cannot be null");
         Objects.requireNonNull(errorRouter, "errorRouter cannot be null");
-        return new Feeder(
-                new PollingFeeder(reader, new InboxItemStoredHandler(updater, emitter, errorRouter), interval),
-                errorRouter);
+        Handler<InboxItemStored> handler = new InboxItemStoredHandler(updater, emitter, errorRouter);
+        PollingFeeder strategy = new PollingFeeder(reader, handler, scheduler, policy);
+        return new Feeder(strategy, errorRouter);
     }
 }

@@ -1,4 +1,4 @@
-package software.spool.publisher.api.builder;
+package software.spool.feeder.api.builder;
 
 /**
  * Factory entry point for creating pre-configured feeder builders.
