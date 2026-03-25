@@ -54,6 +54,9 @@ public class InboxItemStoredHandler implements Handler<InboxItemStored> {
                     .addMetadata(item.metadata())
                     .build());
             updater.update(object.idempotencyKey(), InboxItemStatus.PUBLISHED);
-        } catch (Exception e) { errorRouter.dispatch(e, object); }
+        } catch (Exception e) {
+            updater.update(object.idempotencyKey(), InboxItemStatus.UNPUBLISHED);
+            errorRouter.dispatch(e, object);
+        }
     }
 }

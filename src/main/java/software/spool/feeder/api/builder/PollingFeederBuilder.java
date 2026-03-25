@@ -4,11 +4,10 @@ import software.spool.core.control.Handler;
 import software.spool.core.model.InboxItemStored;
 import software.spool.core.port.EventBusEmitter;
 import software.spool.core.port.InboxUpdater;
-import software.spool.core.port.PollingScheduler;
 import software.spool.core.port.decorator.SafeEventBusEmitter;
 import software.spool.core.port.decorator.SafeInboxUpdater;
 import software.spool.core.utils.ErrorRouter;
-import software.spool.core.utils.PollingPolicy;
+import software.spool.core.utils.PollingConfiguration;
 import software.spool.feeder.api.Feeder;
 import software.spool.feeder.api.port.InboxReader;
 import software.spool.feeder.api.strategy.PollingFeeder;
@@ -40,9 +39,8 @@ public class PollingFeederBuilder {
     private InboxReader reader;
     private InboxUpdater updater;
     private EventBusEmitter emitter;
-    private PollingPolicy policy;
+    private PollingConfiguration pollingConfiguration;
     private ErrorRouter errorRouter;
-    private PollingScheduler scheduler;
 
     PollingFeederBuilder() {
     }
@@ -86,8 +84,8 @@ public class PollingFeederBuilder {
      * @param interval the interval between polls; defaults to 30 seconds if not set
      * @return this builder for chaining
      */
-    public PollingFeederBuilder each(Duration interval) {
-        this.policy = PollingPolicy.every(interval);
+    public PollingFeederBuilder every(Duration interval) {
+        this.pollingConfiguration = PollingConfiguration.every(interval);
         return this;
     }
 
@@ -102,11 +100,6 @@ public class PollingFeederBuilder {
         return this;
     }
 
-    public PollingFeederBuilder withScheduler(PollingScheduler scheduler) {
-        this.scheduler = scheduler;
-        return this;
-    }
-
     /**
      * Builds and returns the configured polling {@link Feeder}.
      *
@@ -115,7 +108,7 @@ public class PollingFeederBuilder {
      */
     public Feeder create() {
         Handler<InboxItemStored> handler = new InboxItemStoredHandler(updater, emitter, errorRouter);
-        PollingFeeder strategy = new PollingFeeder(reader, handler, scheduler, policy);
+        PollingFeeder strategy = new PollingFeeder(reader, handler, pollingConfiguration);
         return new Feeder(strategy, errorRouter);
     }
 }

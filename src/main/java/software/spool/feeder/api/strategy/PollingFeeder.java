@@ -4,11 +4,11 @@ import software.spool.core.control.Handler;
 import software.spool.core.model.InboxItem;
 import software.spool.core.model.InboxItemStatus;
 import software.spool.core.model.InboxItemStored;
-import software.spool.core.port.PollingScheduler;
 import software.spool.core.utils.CancellationToken;
-import software.spool.core.utils.PollingPolicy;
+import software.spool.core.utils.PollingConfiguration;
 import software.spool.feeder.api.port.InboxReader;
 
+import java.time.Duration;
 import java.util.Objects;
 
 /**
@@ -30,8 +30,7 @@ import java.util.Objects;
 public class PollingFeeder implements FeederStrategy {
     private final InboxReader reader;
     private final Handler<InboxItemStored> handler;
-    private final PollingScheduler scheduler;
-    private final PollingPolicy policy;
+    private final PollingConfiguration pollingConfiguration;
 
     /**
      * Creates a new polling feeder.
@@ -39,11 +38,10 @@ public class PollingFeeder implements FeederStrategy {
      * @param reader   the inbox reader for querying items by status
      * @param handler  the handler that processes each inbox item
      */
-    public PollingFeeder(InboxReader reader, Handler<InboxItemStored> handler, PollingScheduler scheduler, PollingPolicy policy) {
+    public PollingFeeder(InboxReader reader, Handler<InboxItemStored> handler, PollingConfiguration pollingConfiguration) {
         this.reader = Objects.requireNonNull(reader);
         this.handler = Objects.requireNonNull(handler);
-        this.scheduler = Objects.requireNonNull(scheduler);
-        this.policy = Objects.requireNonNull(policy);
+        this.pollingConfiguration = Objects.requireNonNullElse(pollingConfiguration, PollingConfiguration.every(Duration.ofSeconds(10)));
     }
 
     /**
@@ -52,9 +50,9 @@ public class PollingFeeder implements FeederStrategy {
      */
     @Override
     public void execute(CancellationToken token) {
-        scheduler.schedule(
+        pollingConfiguration.scheduler().schedule(
                 () -> reader.findByStatus(InboxItemStatus.UNPUBLISHED).map(this::toEvent).forEach(handler::handle),
-                policy,
+                pollingConfiguration.policy(),
                 token
         );
     }
