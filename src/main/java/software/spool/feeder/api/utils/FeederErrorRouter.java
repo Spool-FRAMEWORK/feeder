@@ -1,5 +1,6 @@
 package software.spool.feeder.api.utils;
 
+import software.spool.core.adapter.logging.LoggerFactory;
 import software.spool.core.exception.*;
 import software.spool.core.model.failure.InboxItemConsumptionFailed;
 import software.spool.core.model.failure.InboxItemStoreFailed;
@@ -30,14 +31,8 @@ public class FeederErrorRouter {
          */
         public static ErrorRouter defaults(EventBusEmitter bus) {
                 return new ErrorRouter()
-                        .on(InboxReadException.class, (e, cause) ->
-                                bus.emit(InboxItemConsumptionFailed.builder()
-                                        .errorMessage(e.getMessage()).build()))
-                        .on(InboxUpdateException.class, (e, cause) ->
-                                bus.emit(InboxItemStoreFailed.builder()
-                                        .from(cause).errorMessage(e.getMessage()).build()))
                         .on(EventBusEmitException.class, (e, cause) ->
-                                System.err.println(e.getMessage()));
+                                LoggerFactory.getLogger(FeederErrorRouter.class).error(e.getMessage()));
 
         }
 }

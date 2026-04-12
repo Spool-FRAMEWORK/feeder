@@ -10,7 +10,10 @@ import software.spool.core.port.watchdog.ModuleHeartBeat;
 import software.spool.core.utils.routing.ErrorRouter;
 import software.spool.feeder.api.Feeder;
 import software.spool.feeder.api.strategy.ReactiveFeederStrategy;
+import software.spool.feeder.api.utils.FeederErrorRouter;
 import software.spool.feeder.internal.control.InboxItemStoredHandler;
+
+import java.util.Objects;
 
 public class ReactiveFeederBuilder {
     private final ModuleHeartBeat heartbeat;
@@ -44,14 +47,18 @@ public class ReactiveFeederBuilder {
     }
 
     public Feeder create() {
-        return new Feeder(initializeStrategy(), errorRouter, heartbeat);
+        return new Feeder(initializeStrategy(), getErrorRouter(), heartbeat);
+    }
+
+    private ErrorRouter getErrorRouter() {
+        return Objects.isNull(errorRouter) ? FeederErrorRouter.defaults(emitter) : errorRouter;
+    }
+
+    private InboxItemStoredHandler initializeHandler() {
+        return new InboxItemStoredHandler(updater, emitter, getErrorRouter());
     }
 
     private ReactiveFeederStrategy initializeStrategy() {
         return new ReactiveFeederStrategy(listener, initializeHandler());
-    }
-
-    private InboxItemStoredHandler initializeHandler() {
-        return new InboxItemStoredHandler(updater, emitter, errorRouter);
     }
 }
