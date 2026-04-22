@@ -4,9 +4,9 @@ import software.spool.core.model.InboxItemStatus;
 import software.spool.core.model.event.InboxItemStored;
 import software.spool.core.model.vo.InboxItem;
 import software.spool.core.port.bus.Handler;
+import software.spool.core.port.inbox.InboxReader;
 import software.spool.core.utils.polling.CancellationToken;
 import software.spool.core.utils.polling.PollingConfiguration;
-import software.spool.feeder.api.port.InboxReader;
 
 import java.time.Duration;
 import java.util.Objects;
