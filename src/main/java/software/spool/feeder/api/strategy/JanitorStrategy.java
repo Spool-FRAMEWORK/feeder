@@ -13,13 +13,13 @@ import software.spool.core.utils.polling.CancellationToken;
  * <ul>
  * <li>{@link ReactiveFeederStrategy} — listens for {@code InboxItemStored} events
  * on the event bus.</li>
- * <li>{@link PollingFeederStrategy} — polls the inbox at a fixed interval.</li>
+ * <li>{@link PollingJanitorStrategy} — polls the inbox at a fixed interval.</li>
  * </ul>
  *
  * @see ReactiveFeederStrategy
- * @see PollingFeederStrategy
+ * @see PollingJanitorStrategy
  */
-public interface FeederStrategy {
+public interface JanitorStrategy {
     /**
      * Starts the strategy and returns a subscription that can be cancelled.
      *

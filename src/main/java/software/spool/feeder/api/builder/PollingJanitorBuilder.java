@@ -14,9 +14,9 @@ import software.spool.core.port.inbox.InboxUpdater;
 import software.spool.core.port.watchdog.ModuleHeartBeat;
 import software.spool.core.utils.polling.PollingConfiguration;
 import software.spool.core.utils.routing.ErrorRouter;
-import software.spool.feeder.api.Feeder;
-import software.spool.feeder.api.strategy.PollingFeederStrategy;
-import software.spool.feeder.api.utils.FeederErrorRouter;
+import software.spool.feeder.api.Janitor;
+import software.spool.feeder.api.strategy.PollingJanitorStrategy;
+import software.spool.feeder.api.utils.JanitorErrorRouter;
 import software.spool.feeder.internal.control.PersistedEnvelopesHandler;
 import software.spool.feeder.internal.control.QuarantineEnvelopesHandler;
 import software.spool.feeder.internal.control.StuckEnvelopesHandler;
@@ -26,7 +26,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Objects;
 
-public class PollingFeederBuilder {
+public class PollingJanitorBuilder {
     private final ModuleHeartBeat heartBeat;
     private InboxStatusQuery reader;
     private InboxUpdater updater;
@@ -37,60 +37,60 @@ public class PollingFeederBuilder {
     private ErrorRouter errorRouter;
     private Integer millisecondsThreshold;
 
-    PollingFeederBuilder(ModuleHeartBeat heartBeat) {
+    PollingJanitorBuilder(ModuleHeartBeat heartBeat) {
         this.heartBeat = heartBeat;
     }
 
-    public PollingFeederBuilder from(InboxStatusQuery reader) {
+    public PollingJanitorBuilder from(InboxStatusQuery reader) {
         this.reader = SafeInboxStatusQuery.of(reader);
         return this;
     }
 
-    public PollingFeederBuilder with(InboxUpdater updater) {
+    public PollingJanitorBuilder with(InboxUpdater updater) {
         this.updater = SafeInboxUpdater.of(updater);
         return this;
     }
 
-    public PollingFeederBuilder removeWith(InboxEnvelopeRemover remover) {
+    public PollingJanitorBuilder removeWith(InboxEnvelopeRemover remover) {
         this.remover = remover;
         return this;
     }
 
-    public PollingFeederBuilder on(EventPublisher publisher) {
+    public PollingJanitorBuilder on(EventPublisher publisher) {
         this.publisher = SafeEventPublisher.of(publisher);
         return this;
     }
 
-    public PollingFeederBuilder subscribeWith(EventSubscriber subscriber) {
+    public PollingJanitorBuilder subscribeWith(EventSubscriber subscriber) {
         this.subscriber = SafeEventSubscriber.of(subscriber);
         return this;
     }
 
-    public PollingFeederBuilder every(Duration interval) {
+    public PollingJanitorBuilder every(Duration interval) {
         this.pollingConfiguration = PollingConfiguration.every(interval);
         return this;
     }
 
-    public PollingFeederBuilder withErrorRouter(ErrorRouter errorRouter) {
+    public PollingJanitorBuilder withErrorRouter(ErrorRouter errorRouter) {
         this.errorRouter = errorRouter;
         return this;
     }
 
-    public PollingFeederBuilder withMillisecondsThreshold(Integer millisecondsThreshold) {
+    public PollingJanitorBuilder withMillisecondsThreshold(Integer millisecondsThreshold) {
         this.millisecondsThreshold = millisecondsThreshold;
         return this;
     }
 
-    public Feeder create() {
-        return new Feeder(initializeStrategy(), getErrorRouter(), heartBeat);
+    public Janitor create() {
+        return new Janitor(initializeStrategy(), getErrorRouter(), heartBeat);
     }
 
     private ErrorRouter getErrorRouter() {
-        return Objects.requireNonNullElse(errorRouter, FeederErrorRouter.defaults(publisher));
+        return Objects.requireNonNullElse(errorRouter, JanitorErrorRouter.defaults(publisher));
     }
 
-    private PollingFeederStrategy initializeStrategy() {
-        return new PollingFeederStrategy(reader, subscriber, initializePersistedHandler(), initialiazeQuarantineHandler(), initializeHandler(), pollingConfiguration);
+    private PollingJanitorStrategy initializeStrategy() {
+        return new PollingJanitorStrategy(reader, subscriber, initializePersistedHandler(), initialiazeQuarantineHandler(), initializeHandler(), pollingConfiguration);
     }
 
     private Handler<Collection<EnvelopeQuarantined>> initialiazeQuarantineHandler() {

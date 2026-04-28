@@ -7,8 +7,8 @@ import software.spool.core.utils.polling.PollingHeartbeat;
 
 import java.util.Objects;
 
-public class FeederBuilderFactory {
-    public static PollingFeederBuilder polling() {
+public class JanitorBuilderFactory {
+    public static PollingJanitorBuilder polling() {
         return new Configuration().polling();
     }
 
@@ -29,8 +29,8 @@ public class FeederBuilderFactory {
             this(null, "feeder");
         }
 
-        public PollingFeederBuilder polling() {
-            return new PollingFeederBuilder(buildHeartbeat(watchdogUrl, moduleId));
+        public PollingJanitorBuilder polling() {
+            return new PollingJanitorBuilder(buildHeartbeat(watchdogUrl, moduleId));
         }
     }
 

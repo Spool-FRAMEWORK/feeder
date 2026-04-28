@@ -6,7 +6,8 @@ import software.spool.core.port.health.ModuleHealthPayload;
 import software.spool.core.port.watchdog.ModuleHeartBeat;
 import software.spool.core.utils.polling.CancellationToken;
 import software.spool.core.utils.routing.ErrorRouter;
-import software.spool.feeder.api.strategy.FeederStrategy;
+import software.spool.feeder.api.builder.JanitorBuilderFactory;
+import software.spool.feeder.api.strategy.JanitorStrategy;
 
 import java.util.Objects;
 
@@ -14,14 +15,14 @@ import java.util.Objects;
  * Main API entry point for the publishing lifecycle.
  *
  * <p>
- * A {@code Feeder} wraps a {@link FeederStrategy} and manages start/stop
+ * A {@code Feeder} wraps a {@link JanitorStrategy} and manages start/stop
  * semantics with built-in error routing. It acts as the bridge between the
  * inbox and downstream event channels.
  * </p>
  *
  * <p>
  * Use the fluent builders in
- * {@link software.spool.feeder.api.builder.FeederBuilderFactory}
+ * {@link JanitorBuilderFactory}
  * to construct instances:
  * </p>
  *
@@ -36,11 +37,11 @@ import java.util.Objects;
  * feeder.startPublishing();
  * }</pre>
  *
- * @see FeederStrategy
- * @see software.spool.feeder.api.builder.FeederBuilderFactory
+ * @see JanitorStrategy
+ * @see JanitorBuilderFactory
  */
-public class Feeder implements SpoolModule {
-    private final FeederStrategy strategy;
+public class Janitor implements SpoolModule {
+    private final JanitorStrategy strategy;
     private CancellationToken token;
     private final ErrorRouter errorRouter;
     private final ModuleHeartBeat heartBeat;
@@ -52,7 +53,7 @@ public class Feeder implements SpoolModule {
      * @param errorRouter the error router for handling exceptions; must not be
      *                    {@code null}
      */
-    public Feeder(FeederStrategy strategy, ErrorRouter errorRouter, ModuleHeartBeat heartBeat) {
+    public Janitor(JanitorStrategy strategy, ErrorRouter errorRouter, ModuleHeartBeat heartBeat) {
         this.strategy = Objects.requireNonNull(strategy);
         this.errorRouter = Objects.requireNonNull(errorRouter);
         this.heartBeat = heartBeat;

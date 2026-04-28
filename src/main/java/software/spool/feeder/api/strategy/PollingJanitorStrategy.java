@@ -14,7 +14,7 @@ import software.spool.core.utils.polling.PollingConfiguration;
 import java.time.Duration;
 import java.util.*;
 
-public class PollingFeederStrategy implements FeederStrategy {
+public class PollingJanitorStrategy implements JanitorStrategy {
     private final InboxStatusQuery reader;
     private final EventSubscriber subscriber;
     private final Handler<Collection<EnvelopePersisted>> persistedEnvelopesHandler;
@@ -22,7 +22,7 @@ public class PollingFeederStrategy implements FeederStrategy {
     private final Handler<Collection<Envelope>> stuckEnvelopesHandler;
     private final PollingConfiguration pollingConfiguration;
 
-    public PollingFeederStrategy(InboxStatusQuery reader, EventSubscriber subscriber, Handler<Collection<EnvelopePersisted>> persistedEnvelopesHandler, Handler<Collection<EnvelopeQuarantined>> quarantineEnvelopesHandler, Handler<Collection<Envelope>> stuckEnvelopesHandler, PollingConfiguration pollingConfiguration) {
+    public PollingJanitorStrategy(InboxStatusQuery reader, EventSubscriber subscriber, Handler<Collection<EnvelopePersisted>> persistedEnvelopesHandler, Handler<Collection<EnvelopeQuarantined>> quarantineEnvelopesHandler, Handler<Collection<Envelope>> stuckEnvelopesHandler, PollingConfiguration pollingConfiguration) {
         this.reader = Objects.requireNonNull(reader);
         this.subscriber = subscriber;
         this.persistedEnvelopesHandler = persistedEnvelopesHandler;
