@@ -1,7 +1,6 @@
 package software.spool.feeder.api.strategy;
 
 import software.spool.core.model.EnvelopeStatus;
-import software.spool.core.model.event.EnvelopeStored;
 import software.spool.core.model.vo.Envelope;
 import software.spool.core.port.bus.Handler;
 import software.spool.core.port.inbox.InboxStatusQuery;

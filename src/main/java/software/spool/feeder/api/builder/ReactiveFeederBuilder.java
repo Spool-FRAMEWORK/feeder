@@ -9,7 +9,6 @@ import software.spool.core.port.inbox.InboxUpdater;
 import software.spool.core.port.watchdog.ModuleHeartBeat;
 import software.spool.core.utils.routing.ErrorRouter;
 import software.spool.feeder.api.Feeder;
-import software.spool.feeder.api.strategy.ReactiveFeederStrategy;
 import software.spool.feeder.api.utils.FeederErrorRouter;
 import software.spool.feeder.internal.control.StuckEnvelopesHandler;
 
