@@ -12,10 +12,6 @@ public class FeederBuilderFactory {
         return new Configuration().polling();
     }
 
-    public static ReactiveFeederBuilder reactive() {
-        return new Configuration().reactive();
-    }
-
     public static Configuration watchdog(String url, String moduleId) {
         return new Configuration(url, moduleId);
     }
@@ -35,10 +31,6 @@ public class FeederBuilderFactory {
 
         public PollingFeederBuilder polling() {
             return new PollingFeederBuilder(buildHeartbeat(watchdogUrl, moduleId));
-        }
-
-        public ReactiveFeederBuilder reactive() {
-            return new ReactiveFeederBuilder(buildHeartbeat(watchdogUrl, moduleId));
         }
     }
 

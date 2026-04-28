@@ -21,8 +21,7 @@ public class QuarantineEnvelopesHandler implements Handler<Collection<EnvelopeQu
     @Override
     public void handle(Collection<EnvelopeQuarantined> envelopeQuarantinedEvents) throws SpoolException {
         try {
-            envelopeQuarantinedEvents
-                    .forEach(e -> updater.update(e.idempotencyKey(), EnvelopeStatus.QUARANTINED));
+            updater.update(envelopeQuarantinedEvents.stream().map(EnvelopeQuarantined::idempotencyKey).toList(), EnvelopeStatus.QUARANTINED);
         } catch (Exception e) {
             errorRouter.dispatch(e);
         }

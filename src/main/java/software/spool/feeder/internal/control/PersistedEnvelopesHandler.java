@@ -20,7 +20,7 @@ public class PersistedEnvelopesHandler implements Handler<Collection<EnvelopePer
     @Override
     public void handle(Collection<EnvelopePersisted> envelopePersistedEvents) throws SpoolException {
         try {
-            envelopePersistedEvents.stream().map(EnvelopePersisted::idempotencyKey).forEach(remover::remove);
+            remover.remove(envelopePersistedEvents.stream().map(EnvelopePersisted::idempotencyKey).toList());
         } catch (Exception e) {
             errorRouter.dispatch(e);
         }
