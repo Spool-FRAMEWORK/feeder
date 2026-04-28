@@ -13,7 +13,7 @@ import software.spool.core.utils.routing.ErrorRouter;
 import software.spool.feeder.api.Feeder;
 import software.spool.feeder.api.strategy.PollingFeederStrategy;
 import software.spool.feeder.api.utils.FeederErrorRouter;
-import software.spool.feeder.internal.control.EnvelopeStoredHandler;
+import software.spool.feeder.internal.control.StuckEnvelopesHandler;
 import software.spool.feeder.internal.port.decorator.SafeInboxStatusQuery;
 
 import java.time.Duration;
@@ -68,7 +68,7 @@ public class PollingFeederBuilder {
         return new PollingFeederStrategy(reader, handler, pollingConfiguration);
     }
 
-    private EnvelopeStoredHandler initializeHandler() {
-        return new EnvelopeStoredHandler(updater, publisher, getErrorRouter());
+    private StuckEnvelopesHandler initializeHandler() {
+        return new StuckEnvelopesHandler(updater, publisher, getErrorRouter());
     }
 }

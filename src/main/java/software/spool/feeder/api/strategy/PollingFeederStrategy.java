@@ -9,14 +9,15 @@ import software.spool.core.utils.polling.CancellationToken;
 import software.spool.core.utils.polling.PollingConfiguration;
 
 import java.time.Duration;
+import java.util.Collection;
 import java.util.Objects;
 
 public class PollingFeederStrategy implements FeederStrategy {
     private final InboxStatusQuery reader;
-    private final Handler<EnvelopeStored> handler;
+    private final Handler<Collection<Envelope>> handler;
     private final PollingConfiguration pollingConfiguration;
 
-    public PollingFeederStrategy(InboxStatusQuery reader, Handler<EnvelopeStored> handler, PollingConfiguration pollingConfiguration) {
+    public PollingFeederStrategy(InboxStatusQuery reader, Handler<Collection<Envelope>> handler, PollingConfiguration pollingConfiguration) {
         this.reader = Objects.requireNonNull(reader);
         this.handler = Objects.requireNonNull(handler);
         this.pollingConfiguration = Objects.requireNonNullElse(pollingConfiguration, PollingConfiguration.every(Duration.ofSeconds(10)));
@@ -25,15 +26,9 @@ public class PollingFeederStrategy implements FeederStrategy {
     @Override
     public void execute(CancellationToken token) {
         pollingConfiguration.scheduler().schedule(
-                () -> reader.findByStatus(EnvelopeStatus.CAPTURED).stream().map(this::toEvent).forEach(handler::handle),
+                () -> handler.handle(reader.findByStatus(EnvelopeStatus.CAPTURED)),
                 pollingConfiguration.policy(),
                 token
         );
-    }
-
-    private EnvelopeStored toEvent(Envelope envelope) {
-        return EnvelopeStored.builder()
-                .idempotencyKey(envelope.idempotencyKey())
-                .build();
     }
 }

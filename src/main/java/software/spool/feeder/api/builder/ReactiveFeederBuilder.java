@@ -11,7 +11,7 @@ import software.spool.core.utils.routing.ErrorRouter;
 import software.spool.feeder.api.Feeder;
 import software.spool.feeder.api.strategy.ReactiveFeederStrategy;
 import software.spool.feeder.api.utils.FeederErrorRouter;
-import software.spool.feeder.internal.control.EnvelopeStoredHandler;
+import software.spool.feeder.internal.control.StuckEnvelopesHandler;
 
 import java.util.Objects;
 
@@ -54,8 +54,8 @@ public class ReactiveFeederBuilder {
         return Objects.isNull(errorRouter) ? FeederErrorRouter.defaults(emitter) : errorRouter;
     }
 
-    private EnvelopeStoredHandler initializeHandler() {
-        return new EnvelopeStoredHandler(updater, emitter, getErrorRouter());
+    private StuckEnvelopesHandler initializeHandler() {
+        return new StuckEnvelopesHandler(updater, emitter, getErrorRouter());
     }
 
     private ReactiveFeederStrategy initializeStrategy() {
