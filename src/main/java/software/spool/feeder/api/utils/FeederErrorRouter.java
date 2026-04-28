@@ -2,37 +2,13 @@ package software.spool.feeder.api.utils;
 
 import software.spool.core.adapter.logging.LoggerFactory;
 import software.spool.core.exception.*;
-import software.spool.core.model.failure.InboxItemConsumptionFailed;
-import software.spool.core.model.failure.InboxItemStoreFailed;
-import software.spool.core.port.bus.EventBusEmitter;
+import software.spool.core.port.bus.EventPublisher;
 import software.spool.core.utils.routing.ErrorRouter;
 
-/**
- * Provides the default {@link ErrorRouter} configuration for the publisher.
- *
- * <p>
- * The routing table maps each typed exception to an appropriate failure event
- * emitted on the {@link EventBusEmitter}:
- * </p>
- * <ul>
- * <li>{@link InboxReadException} → {@link InboxItemConsumptionFailed}</li>
- * <li>{@link InboxUpdateException} → {@link InboxItemStoreFailed}</li>
- * </ul>
- *
- * @see ErrorRouter
- */
 public class FeederErrorRouter {
-        /**
-         * Creates the default error router for publisher operations.
-         *
-         * @param bus the event bus emitter used to publish failure events;
-         *            must not be {@code null}
-         * @return a pre-configured {@link ErrorRouter}
-         */
-        public static ErrorRouter defaults(EventBusEmitter bus) {
+        public static ErrorRouter defaults(EventPublisher publisher) {
                 return new ErrorRouter()
-                        .on(EventBusEmitException.class, (e, cause) ->
-                                LoggerFactory.getLogger(FeederErrorRouter.class).error(e.getMessage()));
-
+                        .on(EventBrokerEmitException.class, (e, cause) ->
+                                LoggerFactory.getLogger(EventBrokerEmitException.class).error(e.getMessage()));
         }
 }
