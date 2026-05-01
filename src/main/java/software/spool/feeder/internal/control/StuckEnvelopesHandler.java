@@ -3,8 +3,6 @@ package software.spool.feeder.internal.control;
 import software.spool.core.model.event.EnvelopeStored;
 import software.spool.core.model.vo.Envelope;
 import software.spool.core.model.vo.EventMetadataKey;
-import software.spool.core.port.bus.BrokerMessage;
-import software.spool.core.port.bus.Destination;
 import software.spool.core.port.bus.EventPublisher;
 import software.spool.core.port.bus.Handler;
 import software.spool.core.port.inbox.InboxUpdater;
@@ -13,7 +11,6 @@ import software.spool.core.utils.routing.ErrorRouter;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
-import java.util.Map;
 import java.util.Objects;
 
 public class StuckEnvelopesHandler implements Handler<Collection<Envelope>> {
@@ -39,16 +36,11 @@ public class StuckEnvelopesHandler implements Handler<Collection<Envelope>> {
                     if (envelope != null) return;
                     try {
                         EnvelopeStored event = buildEventFrom(e);
-                        publish(event);
+                        publisher.publish(event);
                     } catch (Exception ex) {
                         errorRouter.dispatch(ex);
                     }
                 });
-    }
-
-    private void publish(EnvelopeStored event) {
-        publisher.publish(new Destination("spool." + event.getClass().getSimpleName()),
-                new BrokerMessage<>(event, EnvelopeStored.class.getSimpleName(), Map.of()));
     }
 
     private static EnvelopeStored buildEventFrom(Envelope e) {

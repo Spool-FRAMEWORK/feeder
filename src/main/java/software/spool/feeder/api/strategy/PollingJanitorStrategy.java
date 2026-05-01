@@ -4,7 +4,6 @@ import software.spool.core.model.EnvelopeStatus;
 import software.spool.core.model.event.EnvelopePersisted;
 import software.spool.core.model.failure.EnvelopeQuarantined;
 import software.spool.core.model.vo.Envelope;
-import software.spool.core.port.bus.Destination;
 import software.spool.core.port.bus.EventSubscriber;
 import software.spool.core.port.bus.Handler;
 import software.spool.core.port.inbox.InboxStatusQuery;
@@ -35,12 +34,8 @@ public class PollingJanitorStrategy implements JanitorStrategy {
     public void execute(CancellationToken token) {
         List<EnvelopePersisted> persistedEnvelopes = new ArrayList<>();
         List<EnvelopeQuarantined> quarantinedEnvelopes = new ArrayList<>();
-        subscriber.subscribe(new Destination("spool." + EnvelopePersisted.class.getSimpleName()),
-                EnvelopePersisted.class,
-                e -> persistedEnvelopes.add(e.payload()));
-        subscriber.subscribe(new Destination("spool." + EnvelopeQuarantined.class.getSimpleName()),
-                EnvelopeQuarantined.class,
-                e -> quarantinedEnvelopes.add(e.payload()));
+        subscriber.subscribe(EnvelopePersisted.class, persistedEnvelopes::add);
+        subscriber.subscribe (EnvelopeQuarantined.class, quarantinedEnvelopes::add);
         pollingConfiguration.scheduler().schedule(
                 () -> {
                     persistedEnvelopesHandler.handle(Collections.unmodifiableList(persistedEnvelopes));
