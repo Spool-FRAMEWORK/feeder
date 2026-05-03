@@ -1,15 +1,18 @@
-package software.spool.feeder.internal.control;
+package software.spool.janitor.internal.control;
 
+import software.spool.core.adapter.logging.LoggerFactory;
 import software.spool.core.exception.SpoolException;
 import software.spool.core.model.EnvelopeStatus;
 import software.spool.core.model.failure.EnvelopeQuarantined;
 import software.spool.core.port.bus.Handler;
 import software.spool.core.port.inbox.InboxUpdater;
+import software.spool.core.port.logging.Logger;
 import software.spool.core.utils.routing.ErrorRouter;
 
 import java.util.Collection;
 
 public class QuarantineEnvelopesHandler implements Handler<Collection<EnvelopeQuarantined>> {
+    private static final Logger LOG = LoggerFactory.getLogger(QuarantineEnvelopesHandler.class);
     private final InboxUpdater updater;
     private final ErrorRouter errorRouter;
 
@@ -22,6 +25,7 @@ public class QuarantineEnvelopesHandler implements Handler<Collection<EnvelopeQu
     public void handle(Collection<EnvelopeQuarantined> envelopeQuarantinedEvents) throws SpoolException {
         try {
             updater.update(envelopeQuarantinedEvents.stream().map(EnvelopeQuarantined::idempotencyKey).toList(), EnvelopeStatus.QUARANTINED);
+            LOG.info("Quarantined {} envelopes", envelopeQuarantinedEvents.size());
         } catch (Exception e) {
             errorRouter.dispatch(e);
         }

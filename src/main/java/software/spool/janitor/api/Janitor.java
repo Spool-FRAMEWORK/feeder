@@ -1,4 +1,4 @@
-package software.spool.feeder.api;
+package software.spool.janitor.api;
 
 import software.spool.core.model.spool.SpoolModule;
 import software.spool.core.model.spool.SpoolNode;
@@ -6,8 +6,8 @@ import software.spool.core.port.health.ModuleHealthPayload;
 import software.spool.core.port.watchdog.ModuleHeartBeat;
 import software.spool.core.utils.polling.CancellationToken;
 import software.spool.core.utils.routing.ErrorRouter;
-import software.spool.feeder.api.builder.JanitorBuilderFactory;
-import software.spool.feeder.api.strategy.JanitorStrategy;
+import software.spool.janitor.api.builder.JanitorBuilderFactory;
+import software.spool.janitor.api.strategy.JanitorStrategy;
 
 import java.util.Objects;
 

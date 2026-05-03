@@ -1,4 +1,4 @@
-package software.spool.feeder.api.builder;
+package software.spool.janitor.api.builder;
 
 import software.spool.core.adapter.watchdog.HttpWatchdogClient;
 import software.spool.core.model.watchdog.ModuleIdentity;

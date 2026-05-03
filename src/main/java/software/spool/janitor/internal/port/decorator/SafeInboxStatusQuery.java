@@ -1,4 +1,4 @@
-package software.spool.feeder.internal.port.decorator;
+package software.spool.janitor.internal.port.decorator;
 
 import software.spool.core.exception.InboxReadException;
 import software.spool.core.exception.SpoolException;

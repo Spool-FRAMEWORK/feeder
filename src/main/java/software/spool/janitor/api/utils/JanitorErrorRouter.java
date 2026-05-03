@@ -1,4 +1,4 @@
-package software.spool.feeder.api.utils;
+package software.spool.janitor.api.utils;
 
 import software.spool.core.adapter.logging.LoggerFactory;
 import software.spool.core.exception.*;

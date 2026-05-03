@@ -1,4 +1,4 @@
-package software.spool.feeder.api.builder;
+package software.spool.janitor.api.builder;
 
 import software.spool.core.model.event.EnvelopePersisted;
 import software.spool.core.model.failure.EnvelopeQuarantined;
@@ -14,13 +14,13 @@ import software.spool.core.port.inbox.InboxUpdater;
 import software.spool.core.port.watchdog.ModuleHeartBeat;
 import software.spool.core.utils.polling.PollingConfiguration;
 import software.spool.core.utils.routing.ErrorRouter;
-import software.spool.feeder.api.Janitor;
-import software.spool.feeder.api.strategy.PollingJanitorStrategy;
-import software.spool.feeder.api.utils.JanitorErrorRouter;
-import software.spool.feeder.internal.control.PersistedEnvelopesHandler;
-import software.spool.feeder.internal.control.QuarantineEnvelopesHandler;
-import software.spool.feeder.internal.control.StuckEnvelopesHandler;
-import software.spool.feeder.internal.port.decorator.SafeInboxStatusQuery;
+import software.spool.janitor.api.Janitor;
+import software.spool.janitor.api.strategy.PollingJanitorStrategy;
+import software.spool.janitor.api.utils.JanitorErrorRouter;
+import software.spool.janitor.internal.control.PersistedEnvelopesHandler;
+import software.spool.janitor.internal.control.QuarantineEnvelopesHandler;
+import software.spool.janitor.internal.control.StuckEnvelopesHandler;
+import software.spool.janitor.internal.port.decorator.SafeInboxStatusQuery;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -102,6 +102,6 @@ public class PollingJanitorBuilder {
     }
 
     private StuckEnvelopesHandler initializeHandler() {
-        return new StuckEnvelopesHandler(updater, publisher, getErrorRouter(), Duration.ofMillis(Objects.requireNonNullElse(millisecondsThreshold, 5000)));
+        return new StuckEnvelopesHandler(updater, publisher, getErrorRouter(), Duration.ofMillis(Objects.requireNonNullElse(millisecondsThreshold, 60000)));
     }
 }

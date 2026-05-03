@@ -1,4 +1,4 @@
-package software.spool.feeder.api.strategy;
+package software.spool.janitor.api.strategy;
 
 import software.spool.core.exception.SpoolException;
 import software.spool.core.utils.polling.CancellationToken;

@@ -1,11 +1,13 @@
-package software.spool.feeder.internal.control;
+package software.spool.janitor.internal.control;
 
+import software.spool.core.adapter.logging.LoggerFactory;
 import software.spool.core.model.event.EnvelopeStored;
 import software.spool.core.model.vo.Envelope;
 import software.spool.core.model.vo.EventMetadataKey;
 import software.spool.core.port.bus.EventPublisher;
 import software.spool.core.port.bus.Handler;
 import software.spool.core.port.inbox.InboxUpdater;
+import software.spool.core.port.logging.Logger;
 import software.spool.core.utils.routing.ErrorRouter;
 
 import java.time.Duration;
@@ -14,6 +16,7 @@ import java.util.Collection;
 import java.util.Objects;
 
 public class StuckEnvelopesHandler implements Handler<Collection<Envelope>> {
+    private static final Logger LOG = LoggerFactory.getLogger(StuckEnvelopesHandler.class);
     private final InboxUpdater updater;
     private final EventPublisher publisher;
     private final ErrorRouter errorRouter;
@@ -37,6 +40,7 @@ public class StuckEnvelopesHandler implements Handler<Collection<Envelope>> {
                     try {
                         EnvelopeStored event = buildEventFrom(e);
                         publisher.publish(event);
+                        LOG.warn("Republished Envelope {} | current attempt: {}", event, e.retries());
                     } catch (Exception ex) {
                         errorRouter.dispatch(ex);
                     }

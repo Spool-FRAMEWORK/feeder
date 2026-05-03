@@ -1,5 +1,6 @@
-package software.spool.feeder.api.strategy;
+package software.spool.janitor.api.strategy;
 
+import software.spool.core.adapter.logging.LoggerFactory;
 import software.spool.core.model.EnvelopeStatus;
 import software.spool.core.model.event.EnvelopePersisted;
 import software.spool.core.model.failure.EnvelopeQuarantined;
@@ -7,6 +8,7 @@ import software.spool.core.model.vo.Envelope;
 import software.spool.core.port.bus.EventSubscriber;
 import software.spool.core.port.bus.Handler;
 import software.spool.core.port.inbox.InboxStatusQuery;
+import software.spool.core.port.logging.Logger;
 import software.spool.core.utils.polling.CancellationToken;
 import software.spool.core.utils.polling.PollingConfiguration;
 
@@ -14,6 +16,7 @@ import java.time.Duration;
 import java.util.*;
 
 public class PollingJanitorStrategy implements JanitorStrategy {
+    private static final Logger LOG = LoggerFactory.getLogger(PollingJanitorStrategy.class);
     private final InboxStatusQuery reader;
     private final EventSubscriber subscriber;
     private final Handler<Collection<EnvelopePersisted>> persistedEnvelopesHandler;
@@ -38,11 +41,16 @@ public class PollingJanitorStrategy implements JanitorStrategy {
         subscriber.subscribe (EnvelopeQuarantined.class, quarantinedEnvelopes::add);
         pollingConfiguration.scheduler().schedule(
                 () -> {
-                    persistedEnvelopesHandler.handle(Collections.unmodifiableList(persistedEnvelopes));
-                    quarantineEnvelopesHandler.handle(Collections.unmodifiableList(quarantinedEnvelopes));
-                    stuckEnvelopesHandler.handle(reader.findByStatus(EnvelopeStatus.CAPTURED));
-                    persistedEnvelopes.clear();
-                    quarantinedEnvelopes.clear();
+                    try {
+                        LOG.info("Polling janitor strategy execution started");
+                        persistedEnvelopesHandler.handle(Collections.unmodifiableList(persistedEnvelopes));
+                        quarantineEnvelopesHandler.handle(Collections.unmodifiableList(quarantinedEnvelopes));
+                        stuckEnvelopesHandler.handle(reader.findByStatus(EnvelopeStatus.CAPTURED));
+                        persistedEnvelopes.clear();
+                        quarantinedEnvelopes.clear();
+                    } catch (Exception e) {
+                        LOG.error("Exception occurred while polling janitor strategy", e);
+                    }
                 },
                 pollingConfiguration.policy(),
                 token
