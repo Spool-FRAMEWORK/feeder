@@ -1,7 +1,8 @@
 package software.spool.janitor.api.builder;
 
-import software.spool.core.model.event.EnvelopePersisted;
-import software.spool.core.model.failure.EnvelopeQuarantined;
+import software.spool.core.pipeline.ObservedStep;
+import software.spool.core.pipeline.Pipeline;
+import software.spool.core.pipeline.PipelineContext;
 import software.spool.core.port.bus.EventPublisher;
 import software.spool.core.port.bus.EventSubscriber;
 import software.spool.core.port.bus.Handler;
@@ -17,13 +18,10 @@ import software.spool.core.utils.routing.ErrorRouter;
 import software.spool.janitor.api.Janitor;
 import software.spool.janitor.api.strategy.PollingJanitorStrategy;
 import software.spool.janitor.api.utils.JanitorErrorRouter;
-import software.spool.janitor.internal.control.PersistedEnvelopesHandler;
-import software.spool.janitor.internal.control.QuarantineEnvelopesHandler;
-import software.spool.janitor.internal.control.StuckEnvelopesHandler;
+import software.spool.janitor.internal.control.*;
 import software.spool.janitor.internal.port.decorator.SafeInboxStatusQuery;
 
 import java.time.Duration;
-import java.util.Collection;
 import java.util.Objects;
 
 public class PollingJanitorBuilder {
@@ -36,6 +34,7 @@ public class PollingJanitorBuilder {
     private PollingConfiguration pollingConfiguration;
     private ErrorRouter errorRouter;
     private Integer millisecondsThreshold;
+    private Integer millisecondsTtl;
 
     PollingJanitorBuilder(ModuleHeartBeat heartBeat) {
         this.heartBeat = heartBeat;
@@ -81,6 +80,11 @@ public class PollingJanitorBuilder {
         return this;
     }
 
+    public PollingJanitorBuilder withMillisecondsTtl(Integer millisecondsTtl) {
+        this.millisecondsTtl = millisecondsTtl;
+        return this;
+    }
+
     public Janitor create() {
         return new Janitor(initializeStrategy(), getErrorRouter(), heartBeat);
     }
@@ -90,18 +94,20 @@ public class PollingJanitorBuilder {
     }
 
     private PollingJanitorStrategy initializeStrategy() {
-        return new PollingJanitorStrategy(reader, subscriber, initializePersistedHandler(), initialiazeQuarantineHandler(), initializeHandler(), pollingConfiguration);
+        return new PollingJanitorStrategy(reader, subscriber, initializeJanitorScheduleHandler(), pollingConfiguration);
     }
 
-    private Handler<Collection<EnvelopeQuarantined>> initialiazeQuarantineHandler() {
-        return new QuarantineEnvelopesHandler(updater, getErrorRouter());
+    private Handler<EventsDTO> initializeJanitorScheduleHandler() {
+        return new JanitorScheduleHandler(initializePipeline(), getErrorRouter());
     }
 
-    private Handler<Collection<EnvelopePersisted>> initializePersistedHandler() {
-        return new PersistedEnvelopesHandler(remover, getErrorRouter());
-    }
-
-    private StuckEnvelopesHandler initializeHandler() {
-        return new StuckEnvelopesHandler(updater, publisher, getErrorRouter(), Duration.ofMillis(Objects.requireNonNullElse(millisecondsThreshold, 60000)));
+    private Pipeline<PipelineContext, PipelineContext> initializePipeline() {
+        return Pipeline.<PipelineContext>start()
+                .add(new ObservedStep<>("update-persisted", new UpdatePersistedEnvelopesStep(updater)))
+                .add(new ObservedStep<>("quarantine-envelopes", new QuarantineFailedEnvelopesStep(updater)))
+                .add(new ObservedStep<>("expired-envelopes",
+                        new RemoveExpiredEnvelopesStep(Duration.ofMillis(millisecondsTtl), remover, reader)))
+                .add(new ObservedStep<>("handle-stuck-envelopes",
+                        new RepublishStuckEnvelopesStep(reader, publisher, Duration.ofMillis(millisecondsThreshold))));
     }
 }
