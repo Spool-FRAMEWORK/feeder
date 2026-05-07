@@ -106,7 +106,7 @@ public class PollingJanitorBuilder {
                 .add(new ObservedStep<>("update-persisted", new UpdatePersistedEnvelopesStep(updater)))
                 .add(new ObservedStep<>("quarantine-envelopes", new QuarantineFailedEnvelopesStep(updater)))
                 .add(new ObservedStep<>("expired-envelopes",
-                        new RemoveExpiredEnvelopesStep(Duration.ofMillis(millisecondsTtl), remover, reader)))
+                        new RemoveExpiredEnvelopesStep(getErrorRouter(), Duration.ofMillis(millisecondsTtl), remover, reader)))
                 .add(new ObservedStep<>("handle-stuck-envelopes",
                         new RepublishStuckEnvelopesStep(reader, publisher, Duration.ofMillis(millisecondsThreshold))));
     }
